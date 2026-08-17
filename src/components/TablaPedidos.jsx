@@ -87,18 +87,18 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace de WhatsApp con formato seguro para URLs
+  // Genera el enlace de WhatsApp con formato limpio y sin duplicados
   function obtenerUrlWhatsApp(pedido) {
     const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
 
     const mensaje = 
-      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura || ''}*\n\n` +
+      `📦 *DETALLE DE ENTREGA*\n` +
+      `• *Factura:* #${pedido.numero_factura || ''}\n` +
       `• *Cliente:* ${pedido.cliente || ''}\n` +
       `• *Dirección:* ${pedido.direccion || ''}\n` +
       `• *Estatus:* ${estatusTexto}\n\n` +
       `Por favor confirmar al completar la entrega.`
 
-    // encodeURIComponent codifica espacios, saltos de línea (\n) y caracteres especiales
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
   }
 
