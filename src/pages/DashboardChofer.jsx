@@ -6,9 +6,11 @@ import { supabase } from '../lib/supabaseClient'
 function DashboardChofer() {
   const { perfil, cerrarSesion } = useAuth()
   const [pedidos, setPedidos] = useState([])
+  const [evidencias, setEvidencias] = useState({})
   const [cargando, setCargando] = useState(true)
-  const [subiendoId, setSubiendoId] = useState(null) // ID del pedido subiendo archivo
-  const [mensajeExito, setMensajeExito] = useState('')
+  const [subiendoId, setSubiendoId] = useState(null)
+  const [eliminandoEvId, setEliminandoEvId] = useState(null)
+  const [mensaje, setMensaje] = useState('')
 
   useEffect(() => {
     if (perfil?.id) {
@@ -27,6 +29,11 @@ function DashboardChofer() {
 
       if (!error && data) {
         setPedidos(data)
+        // Cargar las evidencias asociadas a estos pedidos
+        const pedidoIds = data.map((p) => p.id)
+        if (pedidoIds.length > 0) {
+          cargarEvidencias(pedidoIds)
+        }
       }
     } catch (e) {
       console.error('Error al cargar pedidos del chofer:', e)
@@ -35,7 +42,29 @@ function DashboardChofer() {
     }
   }
 
-  // Cambiar estatus de entrega
+  async function cargarEvidencias(pedidoIds) {
+    try {
+      const { data, error } = await supabase
+        .from('evidencias')
+        .select('*')
+        .in('pedido_id', pedidoIds)
+        .order('subido_en', { ascending: false })
+
+      if (!error && data) {
+        const mapa = {}
+        data.forEach((ev) => {
+          if (!mapa[ev.pedido_id]) {
+            mapa[ev.pedido_id] = []
+          }
+          mapa[ev.pedido_id].push(ev)
+        })
+        setEvidencias(mapa)
+      }
+    } catch (e) {
+      console.error('Error al cargar evidencias:', e)
+    }
+  }
+
   async function cambiarEstatus(pedidoId, nuevoEstatus) {
     const { error } = await supabase
       .from('pedidos')
@@ -43,59 +72,116 @@ function DashboardChofer() {
       .eq('id', pedidoId)
 
     if (!error) {
-      setPedidos(function (prev) {
-        return prev.map(function (p) {
-          return p.id === pedidoId ? { ...p, estatus: nuevoEstatus } : p
-        })
-      })
+      setPedidos((prev) =>
+        prev.map((p) => (p.id === pedidoId ? { ...p, estatus: nuevoEstatus } : p))
+      )
     }
   }
 
-  // Subir foto/PDF de evidencia
+  // Subir evidencia
   async function manejarSubirEvidencia(e, pedidoId) {
     const archivo = e.target.files[0]
     if (!archivo) return
 
     setSubiendoId(pedidoId)
-    setMensajeExito('')
+    setMensaje('')
 
     try {
-      // 1. Nombre de archivo único
       const extension = archivo.name.split('.').pop()
       const nombreArchivo = `${pedidoId}_${Date.now()}.${extension}`
 
-      // 2. Subir archivo a Supabase Storage (bucket: evidencias)
+      // 1. Subir al Storage
       const { error: errorStorage } = await supabase.storage
         .from('evidencias')
         .upload(nombreArchivo, archivo, { upsert: true })
 
       if (errorStorage) throw errorStorage
 
-      // 3. Obtener URL pública
+      // 2. URL pública
       const { data: urlData } = supabase.storage
         .from('evidencias')
         .getPublicUrl(nombreArchivo)
 
       const archivoUrl = urlData.publicUrl
 
-      // 4. Guardar registro en la tabla 'evidencias'
-      const { error: errorTabla } = await supabase
+      // 3. Registrar en base de datos
+      const { data: evidenciaGuardada, error: errorTabla } = await supabase
         .from('evidencias')
         .insert({
           pedido_id: pedidoId,
           archivo_url: archivoUrl,
         })
+        .select()
+        .single()
 
       if (errorTabla) throw errorTabla
 
-      // 5. Marcar automáticamente como completada
+      // Actualizar estado local de evidencias
+      setEvidencias((prev) => ({
+        ...prev,
+        [pedidoId]: [evidenciaGuardada, ...(prev[pedidoId] || [])],
+      }))
+
+      // Cambiar estatus a completada
       await cambiarEstatus(pedidoId, 'completada')
-      setMensajeExito('✅ Evidencia subida y pedido completado.')
+      setMensaje('✅ Evidencia subida correctamente.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
       alert('Error al subir el archivo: ' + error.message)
     } finally {
       setSubiendoId(null)
+    }
+  }
+
+  // ELIMINAR / DESHACER ADJUNTO
+  async function eliminarEvidencia(evidencia, pedidoId) {
+    const confirmar = window.confirm(
+      '¿Estás seguro de que deseas eliminar este archivo adjunto?'
+    )
+    if (!confirmar) return
+
+    setEliminandoEvId(evidencia.id)
+    setMensaje('')
+
+    try {
+      // 1. Intentar borrar el archivo del Storage de Supabase (extraer el nombre del archivo de la URL)
+      if (evidencia.archivo_url) {
+        const partesUrl = evidencia.archivo_url.split('/')
+        const nombreArchivo = partesUrl[partesUrl.length - 1]
+        if (nombreArchivo) {
+          await supabase.storage.from('evidencias').remove([nombreArchivo])
+        }
+      }
+
+      // 2. Eliminar el registro de la tabla 'evidencias'
+      const { error } = await supabase
+        .from('evidencias')
+        .delete()
+        .eq('id', evidencia.id)
+
+      if (error) throw error
+
+      // 3. Actualizar estado local
+      const evidenciasRestantes = (evidencias[pedidoId] || []).filter(
+        (ev) => ev.id !== evidencia.id
+      )
+
+      setEvidencias((prev) => ({
+        ...prev,
+        [pedidoId]: evidenciasRestantes,
+      }))
+
+      // 4. Si ya no le quedan evidencias al pedido, regresar a "pendiente"
+      if (evidenciasRestantes.length === 0) {
+        await cambiarEstatus(pedidoId, 'pendiente')
+      }
+
+      setMensaje('🗑️ Evidencia eliminada.')
+    } catch (error) {
+      console.error('Error al eliminar evidencia:', error)
+      alert('No se pudo eliminar la evidencia: ' + error.message)
+    } finally {
+      setEliminandoEvId(null)
     }
   }
 
@@ -116,9 +202,7 @@ function DashboardChofer() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main style={estilos.contenido}>
-        {mensajeExito && (
-          <div style={estilos.alertaExito}>{mensajeExito}</div>
-        )}
+        {mensaje && <div style={estilos.alerta}>{mensaje}</div>}
 
         {cargando ? (
           <p style={{ textAlign: 'center', color: '#64748b' }}>
@@ -126,16 +210,17 @@ function DashboardChofer() {
           </p>
         ) : pedidos.length === 0 ? (
           <div style={estilos.sinPedidos}>
-            <p>🎉 No tienes entregas pendientes asignadas.</p>
+            <p>🎉 No tienes entregas asignadas.</p>
             <button onClick={cargarMisPedidos} style={estilos.botonRefrescar}>
               🔄 Actualizar lista
             </button>
           </div>
         ) : (
           <div style={estilos.listaTarjetas}>
-            {pedidos.map(function (pedido) {
+            {pedidos.map((pedido) => {
               const esCompletado = pedido.estatus === 'completada'
               const estaCargandoArchivo = subiendoId === pedido.id
+              const listaEvidencias = evidencias[pedido.id] || []
 
               return (
                 <div key={pedido.id} style={estilos.tarjeta}>
@@ -165,9 +250,39 @@ function DashboardChofer() {
                     </p>
                   </div>
 
+                  {/* EVIDENCIAS ADJUNTAS */}
+                  {listaEvidencias.length > 0 && (
+                    <div style={estilos.seccionEvidencias}>
+                      <span style={estilos.tituloEvidencias}>
+                        📎 Archivos adjuntos ({listaEvidencias.length}):
+                      </span>
+                      <div style={estilos.listaEvidencias}>
+                        {listaEvidencias.map((ev, index) => (
+                          <div key={ev.id || index} style={estilos.itemEvidencia}>
+                            <a
+                              href={ev.archivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={estilos.linkEvidencia}
+                            >
+                              📄 Evidencia {index + 1}
+                            </a>
+                            <button
+                              onClick={() => eliminarEvidencia(ev, pedido.id)}
+                              disabled={eliminandoEvId === ev.id}
+                              style={estilos.botonEliminarEvidencia}
+                              title="Eliminar este adjunto"
+                            >
+                              {eliminandoEvId === ev.id ? '⏳' : '🗑️ Deshacer'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* BOTONES DE ACCIÓN */}
                   <div style={estilos.tarjetaAcciones}>
-                    {/* Botón Abrir Mapa */}
                     {pedido.direccion && (
                       <a
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -181,18 +296,15 @@ function DashboardChofer() {
                       </a>
                     )}
 
-                    {/* Botón Subir Evidencia */}
                     <label style={estilos.botonSubir}>
                       {estaCargandoArchivo
                         ? '⏳ Subiendo...'
-                        : '📷 Subir Evidencia'}
+                        : '📷 Agregar Evidencia'}
                       <input
                         type="file"
                         accept="image/*,application/pdf"
-                        capture="environment" // Abre cámara directa en celulares
-                        onChange={function (e) {
-                          manejarSubirEvidencia(e, pedido.id)
-                        }}
+                        capture="environment"
+                        onChange={(e) => manejarSubirEvidencia(e, pedido.id)}
                         style={{ display: 'none' }}
                         disabled={estaCargandoArchivo}
                       />
@@ -249,9 +361,9 @@ const estilos = {
     maxWidth: '500px',
     margin: '0 auto',
   },
-  alertaExito: {
-    background: '#dcfce7',
-    color: '#166534',
+  alerta: {
+    background: '#e0f2fe',
+    color: '#0369a1',
     padding: '0.75rem',
     borderRadius: '8px',
     marginBottom: '1rem',
@@ -318,12 +430,56 @@ const estilos = {
     fontWeight: 'bold',
   },
   tarjetaCuerpo: {
-    marginBottom: '1rem',
+    marginBottom: '0.75rem',
   },
   lineaInfo: {
     margin: '0.35rem 0',
     fontSize: '0.9rem',
     color: '#334155',
+  },
+  seccionEvidencias: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '0.6rem',
+    marginBottom: '1rem',
+  },
+  tituloEvidencias: {
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    color: '#475569',
+    display: 'block',
+    marginBottom: '0.4rem',
+  },
+  listaEvidencias: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.4rem',
+  },
+  itemEvidencia: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: '#fff',
+    padding: '0.4rem 0.6rem',
+    borderRadius: '6px',
+    border: '1px solid #cbd5e1',
+  },
+  linkEvidencia: {
+    color: '#2563eb',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    textDecoration: 'none',
+  },
+  botonEliminarEvidencia: {
+    background: '#fee2e2',
+    color: '#991b1b',
+    border: 'none',
+    padding: '0.25rem 0.5rem',
+    borderRadius: '4px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    cursor: 'pointer',
   },
   tarjetaAcciones: {
     display: 'flex',
