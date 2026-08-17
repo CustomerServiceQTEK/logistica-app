@@ -87,53 +87,18 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace de WhatsApp usando saltos de línea y emojis compatibles con API de WhatsApp
+  // Genera el enlace de WhatsApp con formato texto limpio
   function obtenerUrlWhatsApp(pedido) {
-    const estatusTexto = pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'
+    const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
 
     const mensaje = 
-      `📦 *Detalle de Entrega - Factura #${pedido.numero_factura}*%0A%0A` +
-      `👤 *Cliente:* ${pedido.cliente}%0A` +
-      `📍 *Dirección:* ${pedido.direccion}%0A` +
-      `📌 *Estatus:* ${estatusTexto}%0A%0A` +
+      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura}*%0A%0A` +
+      `• *Cliente:* ${pedido.cliente}%0A` +
+      `• *Direccion:* ${pedido.direccion}%0A` +
+      `• *Estatus:* ${estatusTexto}%0A%0A` +
       `Por favor confirmar al completar la entrega.`
 
-    return `https://api.whatsapp.com/send?text=${mensaje}`
-  }
-
-  const pedidosFiltrados = pedidos.filter(function (p) {
-    const termino = busqueda.toLowerCase().trim()
-    if (!termino) return true
-
-    const factura = String(p.numero_factura || '').toLowerCase()
-    const cliente = String(p.cliente || '').toLowerCase()
-    const direccion = String(p.direccion || '').toLowerCase()
-
-    return (
-      factura.includes(termino) ||
-      cliente.includes(termino) ||
-      direccion.includes(termino)
-    )
-  })
-
-  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA)
-  const indiceInicio = (paginaActual - 1) * PEDIDOS_POR_PAGINA
-  const pedidosDeLaPagina = pedidosFiltrados.slice(
-    indiceInicio,
-    indiceInicio + PEDIDOS_POR_PAGINA
-  )
-
-  if (cargando) {
-    return (
-      <div style={estilos.contenedor}>
-        <Skeleton height="24px" width="200px" style={{ marginBottom: '1.2rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" />
-      </div>
-    )
+    return `https://wa.me/?text=${mensaje}`
   }
 
   return (
