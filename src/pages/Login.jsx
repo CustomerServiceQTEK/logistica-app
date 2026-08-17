@@ -9,18 +9,20 @@ function Login({ irARegistro }) {
   const [cargando, setCargando] = useState(false)
 
   async function manejarLogin(e) {
-    e.preventDefault()
-    setError('')
-    setCargando(true)
+  e.preventDefault()
+  setError('')
+  setCargando(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError('Correo o contraseña incorrectos.')
-    }
-
-    setCargando(false)
+  if (error) {
+    // Esto nos dirá el motivo exacto (ej. "Invalid login credentials" o "Email not confirmed")
+    console.log("Error de Supabase:", error.message) 
+    setError(error.message) 
   }
+
+  setCargando(false)
+}
 
   return (
     <div style={estilos.contenedor}>
