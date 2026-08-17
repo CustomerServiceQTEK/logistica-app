@@ -104,11 +104,12 @@ function DashboardChofer() {
 
       const archivoUrl = urlData.publicUrl
 
-      // 3. Registrar en base de datos
+      // 3. Registrar en base de datos (Incluye chofer_id)
       const { data: evidenciaGuardada, error: errorTabla } = await supabase
         .from('evidencias')
         .insert({
           pedido_id: pedidoId,
+          chofer_id: perfil.id,
           archivo_url: archivoUrl,
         })
         .select()
