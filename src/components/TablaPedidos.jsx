@@ -1,6 +1,6 @@
 // src/components/TablaPedidos.jsx
 // Muestra todos los pedidos en una tabla, permite buscar en tiempo real,
-// asignar un chofer y ver la evidencia subida de cada pedido completado
+// asignar chofer, ver múltiples evidencias y enviar detalles vía WhatsApp
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
@@ -51,11 +51,13 @@ function TablaPedidos() {
       .select('pedido_id, archivo_url, subido_en')
       .order('subido_en', { ascending: false })
     if (!error) {
+      // Agrupamos TODAS las evidencias por pedido_id en un arreglo
       const mapa = {}
       data.forEach(function (ev) {
         if (!mapa[ev.pedido_id]) {
-          mapa[ev.pedido_id] = { url: ev.archivo_url, fecha: ev.subido_en }
+          mapa[ev.pedido_id] = []
         }
+        mapa[ev.pedido_id].push(ev)
       })
       setEvidencias(mapa)
     }
@@ -80,13 +82,22 @@ function TablaPedidos() {
     cargarEvidencias()
   }
 
-  // Manejar el cambio en la barra de búsqueda y reiniciar a la primera página
   function manejarBusqueda(e) {
     setBusqueda(e.target.value)
     setPaginaActual(1)
   }
 
-  // Filtrar pedidos según el texto ingresado (factura, cliente o dirección)
+  // Genera el enlace dinámico de WhatsApp con los datos del pedido
+  function obtenerUrlWhatsApp(pedido) {
+    const texto = `🚚 *Detalle de Entrega - Factura #${pedido.numero_factura}*\n\n` +
+      `👤 *Cliente:* ${pedido.cliente}\n` +
+      `📍 *Dirección:* ${pedido.direccion}\n` +
+      `📌 *Estatus:* ${pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'}\n\n` +
+      `Por favor confirmar al completar la entrega.`
+
+    return `https://wa.me/?text=${encodeURIComponent(texto)}`
+  }
+
   const pedidosFiltrados = pedidos.filter(function (p) {
     const termino = busqueda.toLowerCase().trim()
     if (!termino) return true
@@ -102,7 +113,6 @@ function TablaPedidos() {
     )
   })
 
-  // Calculamos cuántas páginas hay en total sobre los datos filtrados
   const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA)
   const indiceInicio = (paginaActual - 1) * PEDIDOS_POR_PAGINA
   const pedidosDeLaPagina = pedidosFiltrados.slice(
@@ -166,14 +176,16 @@ function TablaPedidos() {
               <th style={estilos.celdaEncabezado}>Dirección</th>
               <th style={estilos.celdaEncabezado}>Estatus</th>
               <th style={estilos.celdaEncabezado}>Chofer asignado</th>
+              <th style={estilos.celdaEncabezado}>WhatsApp</th>
               <th style={estilos.celdaEncabezado}>Fecha de carga</th>
-              <th style={estilos.celdaEncabezado}>Fecha de evidencia</th>
-              <th style={estilos.celdaEncabezado}>Evidencia</th>
+              <th style={estilos.celdaEncabezado}>Evidencias</th>
               <th style={estilos.celdaEncabezado}>Eliminar</th>
             </tr>
           </thead>
           <tbody>
             {pedidosDeLaPagina.map(function (pedido) {
+              const listaEvidencias = evidencias[pedido.id] || []
+
               return (
                 <tr key={pedido.id} style={estilos.fila}>
                   <td style={{ ...estilos.celda, fontWeight: 'bold' }}>
@@ -212,28 +224,39 @@ function TablaPedidos() {
                       })}
                     </select>
                   </td>
+                  {/* Botón de Compartir por WhatsApp */}
+                  <td style={estilos.celda}>
+                    <a
+                      href={obtenerUrlWhatsApp(pedido)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={estilos.botonWhatsApp}
+                      title="Enviar detalles por WhatsApp"
+                    >
+                      💬 Enviar
+                    </a>
+                  </td>
                   <td style={estilos.celda}>
                     {new Date(pedido.creado_en).toLocaleDateString()}
                   </td>
+                  {/* Soporte Multi-archivo */}
                   <td style={estilos.celda}>
-                    {evidencias[pedido.id] ? (
-                      new Date(
-                        evidencias[pedido.id].fecha
-                      ).toLocaleDateString()
-                    ) : (
-                      <span style={{ color: '#cbd5e1' }}>—</span>
-                    )}
-                  </td>
-                  <td style={estilos.celda}>
-                    {evidencias[pedido.id] ? (
-                      <a
-                        href={evidencias[pedido.id].url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={estilos.linkEvidencia}
-                      >
-                        📎 Ver archivo
-                      </a>
+                    {listaEvidencias.length > 0 ? (
+                      <div style={estilos.contenedorEvidencias}>
+                        {listaEvidencias.map(function (ev, index) {
+                          return (
+                            <a
+                              key={index}
+                              href={ev.archivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={estilos.linkEvidencia}
+                            >
+                              📎 Archivo {index + 1}
+                            </a>
+                          )
+                        })}
+                      </div>
                     ) : (
                       <span style={{ color: '#cbd5e1' }}>—</span>
                     )}
@@ -393,11 +416,27 @@ const estilos = {
     border: '1px solid #cbd5e1',
     fontSize: '0.85rem',
   },
+  botonWhatsApp: {
+    display: 'inline-block',
+    padding: '0.35rem 0.7rem',
+    background: '#25D366',
+    color: '#fff',
+    borderRadius: '6px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+    fontSize: '0.8rem',
+    whiteSpace: 'nowrap',
+  },
+  contenedorEvidencias: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+  },
   linkEvidencia: {
     color: '#2563eb',
     textDecoration: 'none',
     fontWeight: 'bold',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
   },
   paginacion: {
     display: 'flex',
