@@ -1,11 +1,8 @@
 // src/components/TablaPedidos.jsx
-// Muestra todos los pedidos en una tabla, permite buscar en tiempo real,
-// asignar chofer, ver múltiples evidencias y enviar detalles vía WhatsApp
-
 import { useEffect, useState } from 'react'
+import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
 import EliminarPedido from './EliminarPedido'
-import Skeleton from './Skeleton'
 
 const PEDIDOS_POR_PAGINA = 25
 
@@ -15,7 +12,12 @@ function TablaPedidos() {
   const [evidencias, setEvidencias] = useState({})
   const [cargando, setCargando] = useState(true)
   const [paginaActual, setPaginaActual] = useState(1)
+
+  // Filtros
   const [busqueda, setBusqueda] = useState('')
+  const [filtroEstatus, setFiltroEstatus] = useState('todos') // todos | pendiente | completada
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [fechaHasta, setFechaHasta] = useState('')
 
   useEffect(() => {
     cargarPedidos()
@@ -25,41 +27,53 @@ function TablaPedidos() {
 
   async function cargarPedidos() {
     setCargando(true)
-    const { data, error } = await supabase
-      .from('pedidos')
-      .select('*')
-      .order('creado_en', { ascending: false })
-    if (!error) {
-      setPedidos(data)
+    try {
+      const { data, error } = await supabase
+        .from('pedidos')
+        .select('*')
+        .order('creado_en', { ascending: false })
+      if (!error && data) {
+        setPedidos(data)
+      }
+    } catch (e) {
+      console.error('Error al cargar pedidos:', e)
+    } finally {
+      setCargando(false)
     }
-    setCargando(false)
   }
 
   async function cargarChoferes() {
-    const { data, error } = await supabase
-      .from('perfiles')
-      .select('id, nombre_completo')
-      .eq('rol', 'chofer')
-    if (!error) {
-      setChoferes(data)
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre_completo')
+        .eq('rol', 'chofer')
+      if (!error && data) {
+        setChoferes(data)
+      }
+    } catch (e) {
+      console.error('Error al cargar choferes:', e)
     }
   }
 
   async function cargarEvidencias() {
-    const { data, error } = await supabase
-      .from('evidencias')
-      .select('pedido_id, archivo_url, subido_en')
-      .order('subido_en', { ascending: false })
-    if (!error) {
-      // Agrupamos TODAS las evidencias por pedido_id en un arreglo
-      const mapa = {}
-      data.forEach(function (ev) {
-        if (!mapa[ev.pedido_id]) {
-          mapa[ev.pedido_id] = []
-        }
-        mapa[ev.pedido_id].push(ev)
-      })
-      setEvidencias(mapa)
+    try {
+      const { data, error } = await supabase
+        .from('evidencias')
+        .select('pedido_id, archivo_url, subido_en')
+        .order('subido_en', { ascending: false })
+      if (!error && data) {
+        const mapa = {}
+        data.forEach(function (ev) {
+          if (!mapa[ev.pedido_id]) {
+            mapa[ev.pedido_id] = []
+          }
+          mapa[ev.pedido_id].push(ev)
+        })
+        setEvidencias(mapa)
+      }
+    } catch (e) {
+      console.error('Error al cargar evidencias:', e)
     }
   }
 
@@ -82,18 +96,10 @@ function TablaPedidos() {
     cargarEvidencias()
   }
 
-  function manejarBusqueda(e) {
-    setBusqueda(e.target.value)
-    setPaginaActual(1)
-  }
-
-  // Genera el enlace de WhatsApp con formato limpio y sin duplicados
   function obtenerUrlWhatsApp(pedido) {
     const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
-
-    const mensaje = 
-      ` *DETALLE DE ENTREGA*\n` +
-      `• *Factura:* #${pedido.numero_factura || ''}\n` +
+    const mensaje =
+      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura || ''}*\n\n` +
       `• *Cliente:* ${pedido.cliente || ''}\n` +
       `• *Dirección:* ${pedido.direccion || ''}\n` +
       `• *Estatus:* ${estatusTexto}\n\n` +
@@ -102,75 +108,210 @@ function TablaPedidos() {
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
   }
 
-  const pedidosFiltrados = pedidos.filter(function (p) {
-    const termino = busqueda.toLowerCase().trim()
-    if (!termino) return true
+  // --- LÓGICA DE FILTRADO ---
+  const listaPedidos = Array.isArray(pedidos) ? pedidos : []
+  const terminoBuscado = (busqueda || '').toLowerCase().trim()
 
-    const factura = String(p.numero_factura || '').toLowerCase()
-    const cliente = String(p.cliente || '').toLowerCase()
-    const direccion = String(p.direccion || '').toLowerCase()
+  const pedidosFiltrados = listaPedidos.filter(function (pedido) {
+    if (!pedido) return false
 
-    return (
-      factura.includes(termino) ||
-      cliente.includes(termino) ||
-      direccion.includes(termino)
-    )
+    // 1. Filtro de Texto (Factura, Cliente, Dirección)
+    const factura = (pedido.numero_factura || '').toString().toLowerCase()
+    const cliente = (pedido.cliente || '').toLowerCase()
+    const direccion = (pedido.direccion || '').toLowerCase()
+    const coincideTexto =
+      !terminoBuscado ||
+      factura.includes(terminoBuscado) ||
+      cliente.includes(terminoBuscado) ||
+      direccion.includes(terminoBuscado)
+
+    // 2. Filtro de Estatus
+    const coincideEstatus =
+      filtroEstatus === 'todos' || pedido.estatus === filtroEstatus
+
+    // 3. Filtro de Fechas
+    let coincideFecha = true
+    if (pedido.creado_en) {
+      const fechaPedido = pedido.creado_en.split('T')[0] // Formato YYYY-MM-DD
+      if (fechaDesde && fechaPedido < fechaDesde) {
+        coincideFecha = false
+      }
+      if (fechaHasta && fechaPedido > fechaHasta) {
+        coincideFecha = false
+      }
+    }
+
+    return coincideTexto && coincideEstatus && coincideFecha
   })
 
-  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA)
-  const indiceInicio = (paginaActual - 1) * PEDIDOS_POR_PAGINA
+  // --- LÓGICA DE PAGINACIÓN ---
+  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA) || 1
+  const indiceInicial = (paginaActual - 1) * PEDIDOS_POR_PAGINA
   const pedidosDeLaPagina = pedidosFiltrados.slice(
-    indiceInicio,
-    indiceInicio + PEDIDOS_POR_PAGINA
+    indiceInicial,
+    indiceInicial + PEDIDOS_POR_PAGINA
   )
+
+  // --- EXPORTAR A EXCEL ---
+  function exportarAExcel() {
+    if (pedidosFiltrados.length === 0) {
+      alert('No hay pedidos para exportar con los filtros actuales.')
+      return
+    }
+
+    // Mapa para buscar nombre del chofer rápido
+    const mapaChoferes = {}
+    choferes.forEach(function (ch) {
+      mapaChoferes[ch.id] = ch.nombre_completo || ch.id
+    })
+
+    // Mapear los datos filtrados para darles formato limpio en Excel
+    const datosExcel = pedidosFiltrados.map(function (pedido) {
+      const listaEvs = evidencias[pedido.id] || []
+      const urlsEvidencias = listaEvs
+        .map(function (e) {
+          return e.archivo_url
+        })
+        .join(' | ')
+
+      return {
+        'No. Factura': pedido.numero_factura || 'N/A',
+        Cliente: pedido.cliente || '—',
+        Dirección: pedido.direccion || '—',
+        Estatus: pedido.estatus === 'completada' ? 'Completada' : 'Pendiente',
+        'Chofer Asignado': mapaChoferes[pedido.chofer_id] || 'Sin asignar',
+        'Fecha Carga': pedido.creado_en
+          ? new Date(pedido.creado_en).toLocaleDateString()
+          : '—',
+        Evidencias: urlsEvidencias || 'Sin evidencias',
+      }
+    })
+
+    // Crear libro y hoja de cálculo
+    const hoja = XLSX.utils.json_to_sheet(datosExcel)
+    const libro = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(libro, hoja, 'Reporte Pedidos')
+
+    // Ajustar ancho automático de columnas
+    hoja['!cols'] = [
+      { wch: 15 }, // Factura
+      { wch: 25 }, // Cliente
+      { wch: 35 }, // Dirección
+      { wch: 12 }, // Estatus
+      { wch: 22 }, // Chofer
+      { wch: 15 }, // Fecha
+      { wch: 40 }, // Evidencias
+    ]
+
+    // Descargar archivo
+    const fechaActual = new Date().toISOString().split('T')[0]
+    XLSX.writeFile(libro, `Reporte_Pedidos_${fechaActual}.xlsx`)
+  }
+
+  function limpiarFiltros() {
+    setBusqueda('')
+    setFiltroEstatus('todos')
+    setFechaDesde('')
+    setFechaHasta('')
+    setPaginaActual(1)
+  }
 
   if (cargando) {
     return (
-      <div style={estilos.contenedor}>
-        <Skeleton height="24px" width="200px" style={{ marginBottom: '1.2rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" style={{ marginBottom: '0.5rem' }} />
-        <Skeleton height="40px" />
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
+        ⏳ Cargando pedidos...
       </div>
     )
   }
 
   return (
     <div style={estilos.contenedor}>
+      {/* ENCABEZADO Y BOTONES PRINCIPALES */}
       <div style={estilos.encabezado}>
         <h3 style={estilos.titulo}>
           📑 Lista de pedidos ({pedidosFiltrados.length})
         </h3>
-        <button onClick={actualizarTodo} style={estilos.botonActualizar}>
-          🔄 Actualizar
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={exportarAExcel} style={estilos.botonExcel}>
+            📊 Exportar Excel
+          </button>
+          <button onClick={actualizarTodo} style={estilos.botonActualizar}>
+            🔄 Actualizar
+          </button>
+        </div>
       </div>
 
-      {/* Campo de Búsqueda Rápida */}
-      <div style={estilos.contenedorBuscador}>
-        <span style={{ fontSize: '1.1rem' }}>🔍</span>
-        <input
-          type="text"
-          placeholder="Buscar por número de factura, cliente o dirección..."
-          value={busqueda}
-          onChange={manejarBusqueda}
-          style={estilos.inputBuscador}
-        />
-        {busqueda && (
-          <button
-            onClick={function () {
-              setBusqueda('')
+      {/* BARRA DE FILTROS Y BÚSQUEDA */}
+      <div style={estilos.panelFiltros}>
+        {/* Buscador */}
+        <div style={estilos.grupoFiltroBusqueda}>
+          <span style={{ fontSize: '1rem' }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Buscar por factura, cliente o dirección..."
+            value={busqueda}
+            onChange={function (e) {
+              setBusqueda(e.target.value)
               setPaginaActual(1)
             }}
-            style={estilos.botonLimpiar}
+            style={estilos.inputBuscador}
+          />
+        </div>
+
+        {/* Filtro por Estatus */}
+        <div style={estilos.grupoFiltro}>
+          <label style={estilos.labelFiltro}>Estatus:</label>
+          <select
+            value={filtroEstatus}
+            onChange={function (e) {
+              setFiltroEstatus(e.target.value)
+              setPaginaActual(1)
+            }}
+            style={estilos.selectFiltro}
           >
-            ✖
+            <option value="todos">Todos</option>
+            <option value="pendiente">⏳ Pendientes</option>
+            <option value="completada">✅ Completadas</option>
+          </select>
+        </div>
+
+        {/* Filtro Fecha Desde */}
+        <div style={estilos.grupoFiltro}>
+          <label style={estilos.labelFiltro}>Desde:</label>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={function (e) {
+              setFechaDesde(e.target.value)
+              setPaginaActual(1)
+            }}
+            style={estilos.inputFecha}
+          />
+        </div>
+
+        {/* Filtro Fecha Hasta */}
+        <div style={estilos.grupoFiltro}>
+          <label style={estilos.labelFiltro}>Hasta:</label>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={function (e) {
+              setFechaHasta(e.target.value)
+              setPaginaActual(1)
+            }}
+            style={estilos.inputFecha}
+          />
+        </div>
+
+        {/* Botón Limpiar */}
+        {(busqueda || filtroEstatus !== 'todos' || fechaDesde || fechaHasta) && (
+          <button onClick={limpiarFiltros} style={estilos.botonLimpiarFiltros}>
+            ✖ Limpiar filtros
           </button>
         )}
       </div>
 
+      {/* TABLA DE PEDIDOS */}
       <div style={{ overflowX: 'auto' }}>
         <table style={estilos.tabla}>
           <thead>
@@ -188,15 +329,16 @@ function TablaPedidos() {
           </thead>
           <tbody>
             {pedidosDeLaPagina.map(function (pedido) {
+              if (!pedido) return null
               const listaEvidencias = evidencias[pedido.id] || []
 
               return (
                 <tr key={pedido.id} style={estilos.fila}>
                   <td style={{ ...estilos.celda, fontWeight: 'bold' }}>
-                    {pedido.numero_factura}
+                    {pedido.numero_factura || 'N/A'}
                   </td>
-                  <td style={estilos.celda}>{pedido.cliente}</td>
-                  <td style={estilos.celda}>{pedido.direccion}</td>
+                  <td style={estilos.celda}>{pedido.cliente || '—'}</td>
+                  <td style={estilos.celda}>{pedido.direccion || '—'}</td>
                   <td style={estilos.celda}>
                     <span
                       style={
@@ -228,7 +370,6 @@ function TablaPedidos() {
                       })}
                     </select>
                   </td>
-                  {/* Botón de Compartir por WhatsApp */}
                   <td style={estilos.celda}>
                     <a
                       href={obtenerUrlWhatsApp(pedido)}
@@ -241,9 +382,10 @@ function TablaPedidos() {
                     </a>
                   </td>
                   <td style={estilos.celda}>
-                    {new Date(pedido.creado_en).toLocaleDateString()}
+                    {pedido.creado_en
+                      ? new Date(pedido.creado_en).toLocaleDateString()
+                      : '—'}
                   </td>
-                  {/* Soporte Multi-archivo */}
                   <td style={estilos.celda}>
                     {listaEvidencias.length > 0 ? (
                       <div style={estilos.contenedorEvidencias}>
@@ -280,13 +422,11 @@ function TablaPedidos() {
 
       {pedidosFiltrados.length === 0 && (
         <p style={{ color: '#64748b', marginTop: '1rem', textAlign: 'center' }}>
-          {busqueda
-            ? 'No se encontraron facturas o coincidencias con "' + busqueda + '".'
-            : 'No hay pedidos cargados todavía.'}
+          No se encontraron pedidos con los filtros aplicados.
         </p>
       )}
 
-      {/* Controles de paginación */}
+      {/* PAGINACIÓN */}
       {totalPaginas > 1 && (
         <div style={estilos.paginacion}>
           <button
@@ -335,10 +475,22 @@ const estilos = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
   },
   titulo: {
     margin: 0,
     fontSize: '1.1rem',
+  },
+  botonExcel: {
+    padding: '0.5rem 1rem',
+    background: '#16a34a',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
   },
   botonActualizar: {
     padding: '0.5rem 1rem',
@@ -348,30 +500,68 @@ const estilos = {
     cursor: 'pointer',
     fontSize: '0.85rem',
   },
-  contenedorBuscador: {
+  panelFiltros: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    alignItems: 'center',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '0.75rem',
+    marginBottom: '1.2rem',
+  },
+  grupoFiltroBusqueda: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    background: '#f8fafc',
+    gap: '0.4rem',
+    background: '#fff',
     border: '1px solid #cbd5e1',
-    borderRadius: '8px',
-    padding: '0.5rem 0.8rem',
-    marginBottom: '1.2rem',
+    borderRadius: '6px',
+    padding: '0.4rem 0.6rem',
+    flex: '1 1 220px',
   },
   inputBuscador: {
     border: 'none',
     background: 'transparent',
     outline: 'none',
     width: '100%',
-    fontSize: '0.95rem',
+    fontSize: '0.85rem',
     color: '#1e293b',
   },
-  botonLimpiar: {
+  grupoFiltro: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+  },
+  labelFiltro: {
+    fontSize: '0.8rem',
+    color: '#64748b',
+    fontWeight: 'bold',
+  },
+  selectFiltro: {
+    padding: '0.4rem 0.6rem',
+    borderRadius: '6px',
+    border: '1px solid #cbd5e1',
+    fontSize: '0.85rem',
+    background: '#fff',
+  },
+  inputFecha: {
+    padding: '0.35rem 0.5rem',
+    borderRadius: '6px',
+    border: '1px solid #cbd5e1',
+    fontSize: '0.85rem',
+    background: '#fff',
+  },
+  botonLimpiarFiltros: {
+    padding: '0.4rem 0.75rem',
+    background: '#fee2e2',
+    color: '#991b1b',
     border: 'none',
-    background: 'transparent',
+    borderRadius: '6px',
     cursor: 'pointer',
-    color: '#94a3b8',
-    fontSize: '0.9rem',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
   },
   tabla: {
     width: '100%',
