@@ -1,7 +1,4 @@
 // src/components/CargaPedidos.jsx
-// Componente para que el Administrador cargue un archivo Excel o CSV,
-// detecte facturas duplicadas y guarde solo las nuevas en la base de datos
-
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
@@ -26,7 +23,22 @@ function CargaPedidos({ onExito }) {
       const workbook = XLSX.read(evento.target.result, { type: 'binary' })
       const primeraHoja = workbook.Sheets[workbook.SheetNames[0]]
       const filas = XLSX.utils.sheet_to_json(primeraHoja)
-      setDatos(filas)
+
+      // Normalizar datos para evitar fallos por espacios o formato
+      const filasLimpias = filas.map((fila) => {
+        // Buscar la llave 'numero_factura' ignorando mayúsculas/espacios
+        const claveFactura = Object.keys(fila).find(
+          (k) => k.trim().toLowerCase() === 'numero_factura'
+        )
+        const numFactura = claveFactura ? String(fila[claveFactura]).trim() : ''
+
+        return {
+          ...fila,
+          numero_factura: numFactura,
+        }
+      }).filter(f => f.numero_factura !== '') // Descartar filas sin factura
+
+      setDatos(filasLimpias)
     }
 
     lector.readAsBinaryString(archivo)
@@ -36,6 +48,7 @@ function CargaPedidos({ onExito }) {
     setGuardando(true)
     setMensaje('')
 
+    // 1. Filtrar duplicados dentro del mismo archivo
     const vistos = new Set()
     const datosSinRepetirEnArchivo = datos.filter((fila) => {
       if (vistos.has(fila.numero_factura)) return false
@@ -45,6 +58,7 @@ function CargaPedidos({ onExito }) {
 
     const numerosFactura = datosSinRepetirEnArchivo.map((f) => f.numero_factura)
 
+    // 2. Consultar a Supabase qué facturas ya existen
     const { data: existentes, error: errorConsulta } = await supabase
       .from('pedidos')
       .select('numero_factura')
@@ -57,17 +71,23 @@ function CargaPedidos({ onExito }) {
       return
     }
 
-    const yaExistentes = new Set(existentes.map((p) => p.numero_factura))
-    const nuevos = datosSinRepetirEnArchivo.filter((f) => !yaExistentes.has(f.numero_factura))
+    // 3. Separar solo las facturas verdaderamente nuevas
+    const yaExistentes = new Set(
+      existentes ? existentes.map((p) => String(p.numero_factura).trim()) : []
+    )
+    const nuevos = datosSinRepetirEnArchivo.filter(
+      (f) => !yaExistentes.has(f.numero_factura)
+    )
     const cantidadDuplicados = datosSinRepetirEnArchivo.length - nuevos.length
 
     if (nuevos.length === 0) {
       setTipoMensaje('advertencia')
-      setMensaje(`Las ${cantidadDuplicados} facturas ya existían. No se guardó nada nuevo.`)
+      setMensaje(`Las ${cantidadDuplicados} facturas ya existían en la base de datos. No se guardó nada nuevo.`)
       setGuardando(false)
       return
     }
 
+    // 4. Insertar ÚNICAMENTE los registros nuevos
     const { data, error } = await supabase
       .from('pedidos')
       .insert(nuevos)
@@ -107,7 +127,7 @@ function CargaPedidos({ onExito }) {
       {datos.length > 0 && (
         <div style={{ marginTop: '1.2rem' }}>
           <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '0.5rem' }}>
-            {datos.length} filas encontradas
+            {datos.length} filas listas para procesar
           </p>
 
           <div style={{ overflowX: 'auto' }}>
