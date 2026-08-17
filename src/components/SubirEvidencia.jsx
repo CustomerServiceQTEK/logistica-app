@@ -1,5 +1,5 @@
 // src/components/SubirEvidencia.jsx
-// Permite al chofer subir una foto o PDF como evidencia de entrega para un pedido
+// Permite al chofer tomar foto directa con la cámara o adjuntar archivos (PDF/imagen)
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
@@ -76,9 +76,23 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
   }
 
   return (
-    <div style={{ textAlign: 'right' }}>
-      <label style={{ ...estilos.botonSubir, opacity: subiendo ? 0.6 : 1 }}>
-        {subiendo ? 'Subiendo...' : '📎 Subir evidencia'}
+    <div style={estilos.contenedorBotones}>
+      {/* Botón de Cámara Directa */}
+      <label style={{ ...estilos.botonCamara, opacity: subiendo ? 0.6 : 1 }}>
+        {subiendo ? 'Subiendo...' : '📸 Tomar foto'}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={manejarArchivo}
+          disabled={subiendo}
+          style={{ display: 'none' }}
+        />
+      </label>
+
+      {/* Botón de Galería / PDF */}
+      <label style={{ ...estilos.botonArchivo, opacity: subiendo ? 0.6 : 1 }}>
+        📎 Adjuntar
         <input
           type="file"
           accept="image/*,.pdf"
@@ -87,6 +101,7 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
           style={{ display: 'none' }}
         />
       </label>
+
       {mensaje && (
         <p style={{ ...estilos.mensaje, color: esError ? '#dc2626' : '#16a34a' }}>
           {mensaje}
@@ -97,7 +112,25 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
 }
 
 const estilos = {
-  botonSubir: {
+  contenedorBotones: {
+    display: 'flex',
+    gap: '0.5rem',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  botonCamara: {
+    display: 'inline-block',
+    padding: '0.6rem 1.1rem',
+    background: '#16a34a',
+    color: '#fff',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+  },
+  botonArchivo: {
     display: 'inline-block',
     padding: '0.6rem 1.1rem',
     background: '#2563eb',
@@ -111,6 +144,8 @@ const estilos = {
   mensaje: {
     fontSize: '0.8rem',
     marginTop: '0.4rem',
+    width: '100%',
+    textAlign: 'right',
   },
 }
 
