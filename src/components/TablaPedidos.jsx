@@ -87,15 +87,27 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace dinámico de WhatsApp con los datos del pedido
+  // Genera el enlace dinámico de WhatsApp garantizando la codificación de emojis
   function obtenerUrlWhatsApp(pedido) {
-    const texto = `🚚 *Detalle de Entrega - Factura #${pedido.numero_factura}*\n\n` +
-      `👤 *Cliente:* ${pedido.cliente}\n` +
-      `📍 *Dirección:* ${pedido.direccion}\n` +
-      `📌 *Estatus:* ${pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'}\n\n` +
-      `Por favor confirmar al completar la entrega.`
+    const camion = '\u{1F69A}'
+    const usuario = '\u{1F464}'
+    const pin = '\u{1F420}'
+    const chincheta = '\u{1F430}'
+    const estatusIcono = pedido.estatus === 'completada' ? '\u{2705}' : '\u{23F3}'
+    const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
 
-    return `https://wa.me/?text=${encodeURIComponent(texto)}`
+    const lineas = [
+      `${camion} *Detalle de Entrega - Factura #${pedido.numero_factura}*`,
+      '',
+      `${usuario} *Cliente:* ${pedido.cliente}`,
+      `📍 *Dirección:* ${pedido.direccion}`,
+      `📌 *Estatus:* ${estatusTexto} ${estatusIcono}`,
+      '',
+      'Por favor confirmar al completar la entrega.'
+    ]
+
+    const mensajeTexto = lineas.join('\n')
+    return `https://wa.me/?text=${encodeURIComponent(mensajeTexto)}`
   }
 
   const pedidosFiltrados = pedidos.filter(function (p) {
