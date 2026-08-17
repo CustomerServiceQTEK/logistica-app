@@ -21,10 +21,16 @@ function DashboardChofer() {
   async function cargarMisPedidos() {
     setCargando(true)
     try {
+      // Garantizar que obtenemos el ID del usuario autenticado
+      const { data: userData } = await supabase.auth.getUser()
+      const usuarioId = perfil?.id || userData?.user?.id
+
+      if (!usuarioId) return
+
       const { data, error } = await supabase
         .from('pedidos')
         .select('*')
-        .eq('chofer_id', perfil.id)
+        .eq('chofer_id', usuarioId)
         .order('creado_en', { ascending: false })
 
       if (!error && data) {
@@ -87,6 +93,14 @@ function DashboardChofer() {
     setMensaje('')
 
     try {
+      // Obtener de forma segura el ID del chofer autenticado
+      const { data: userData } = await supabase.auth.getUser()
+      const choferIdActual = perfil?.id || userData?.user?.id
+
+      if (!choferIdActual) {
+        throw new Error('No se pudo verificar el ID del usuario autenticado. Reintenta iniciar sesión.')
+      }
+
       const extension = archivo.name.split('.').pop()
       const nombreArchivo = `${pedidoId}_${Date.now()}.${extension}`
 
@@ -104,12 +118,12 @@ function DashboardChofer() {
 
       const archivoUrl = urlData.publicUrl
 
-      // 3. Registrar en base de datos (Incluye chofer_id)
+      // 3. Registrar en base de datos especificando explícitamente el chofer_id
       const { data: evidenciaGuardada, error: errorTabla } = await supabase
         .from('evidencias')
         .insert({
           pedido_id: pedidoId,
-          chofer_id: perfil.id,
+          chofer_id: choferIdActual,
           archivo_url: archivoUrl,
         })
         .select()
@@ -145,7 +159,7 @@ function DashboardChofer() {
     setMensaje('')
 
     try {
-      // 1. Intentar borrar el archivo del Storage de Supabase (extraer el nombre del archivo de la URL)
+      // 1. Intentar borrar el archivo del Storage de Supabase
       if (evidencia.archivo_url) {
         const partesUrl = evidencia.archivo_url.split('/')
         const nombreArchivo = partesUrl[partesUrl.length - 1]
