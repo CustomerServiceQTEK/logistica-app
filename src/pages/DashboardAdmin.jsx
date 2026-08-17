@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext'
 import Indicadores from '../components/Indicadores'
 import CargaPedidos from '../components/CargaPedidos'
 import TablaPedidos from '../components/TablaPedidos'
-import ExportarExcel from '../components/ExportarExcel'
 import MetricasTiempos from '../components/MetricasTiempos'
 
 function DashboardAdmin() {
@@ -18,7 +17,6 @@ function DashboardAdmin() {
           <h2 style={estilos.titulo}>📦 Panel de Administrador</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={estilos.textoRol}>Rol: {perfil?.rol}</span>
-            <ExportarExcel />
             <button onClick={cerrarSesion} style={estilos.botonSalir}>
               Cerrar sesión
             </button>
