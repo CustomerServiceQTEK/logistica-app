@@ -1,0 +1,117 @@
+// src/components/SubirEvidencia.jsx
+// Permite al chofer subir una foto o PDF como evidencia de entrega para un pedido
+
+import { useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
+
+function SubirEvidencia({ pedido, choferId, onCompletado }) {
+  const [subiendo, setSubiendo] = useState(false)
+  const [mensaje, setMensaje] = useState('')
+  const [esError, setEsError] = useState(false)
+
+  async function manejarArchivo(e) {
+    const archivo = e.target.files[0]
+    if (!archivo) return
+
+    setSubiendo(true)
+    setMensaje('')
+    setEsError(false)
+
+    try {
+      const extension = archivo.name.split('.').pop()
+      const nombreArchivo = `${pedido.numero_factura}_${Date.now()}.${extension}`
+
+      const { error: errorSubida } = await supabase.storage
+        .from('evidencias')
+        .upload(nombreArchivo, archivo)
+
+      if (errorSubida) {
+        setEsError(true)
+        setMensaje('Error al subir archivo: ' + errorSubida.message)
+        setSubiendo(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('evidencias')
+        .getPublicUrl(nombreArchivo)
+
+      const tipoArchivo = archivo.type.includes('pdf') ? 'pdf' : 'imagen'
+
+      const { error: errorInsert } = await supabase.from('evidencias').insert({
+        pedido_id: pedido.id,
+        chofer_id: choferId,
+        archivo_url: urlData.publicUrl,
+        tipo_archivo: tipoArchivo,
+      })
+
+      if (errorInsert) {
+        setEsError(true)
+        setMensaje('Error al guardar registro: ' + errorInsert.message)
+        setSubiendo(false)
+        return
+      }
+
+      const { error: errorUpdate } = await supabase
+        .from('pedidos')
+        .update({ estatus: 'completada' })
+        .eq('id', pedido.id)
+
+      if (errorUpdate) {
+        setEsError(true)
+        setMensaje('Error al actualizar estatus: ' + errorUpdate.message)
+        setSubiendo(false)
+        return
+      }
+
+      setMensaje('¡Evidencia subida!')
+      if (onCompletado) onCompletado()
+
+    } catch (err) {
+      setEsError(true)
+      setMensaje('Error inesperado: ' + err.message)
+    }
+
+    setSubiendo(false)
+  }
+
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <label style={{ ...estilos.botonSubir, opacity: subiendo ? 0.6 : 1 }}>
+        {subiendo ? 'Subiendo...' : '📎 Subir evidencia'}
+        <input
+          type="file"
+          accept="image/*,.pdf"
+          onChange={manejarArchivo}
+          disabled={subiendo}
+          style={{ display: 'none' }}
+        />
+      </label>
+      {mensaje && (
+        <p style={{ ...estilos.mensaje, color: esError ? '#dc2626' : '#16a34a' }}>
+          {mensaje}
+        </p>
+      )}
+    </div>
+  )
+}
+
+const estilos = {
+  botonSubir: {
+    display: 'inline-block',
+    padding: '0.6rem 1.1rem',
+    background: '#2563eb',
+    color: '#fff',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+  },
+  mensaje: {
+    fontSize: '0.8rem',
+    marginTop: '0.4rem',
+  },
+}
+
+export default SubirEvidencia
