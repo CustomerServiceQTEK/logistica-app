@@ -87,18 +87,46 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace de WhatsApp con formato texto limpio
+  // Genera el enlace de WhatsApp compatible con emojis y formato de texto
   function obtenerUrlWhatsApp(pedido) {
-    const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
+    const estatusTexto = pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'
 
     const mensaje = 
-      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura}*%0A%0A` +
-      `• *Cliente:* ${pedido.cliente}%0A` +
-      `• *Direccion:* ${pedido.direccion}%0A` +
-      `• *Estatus:* ${estatusTexto}%0A%0A` +
+      `📦 *DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura}*\n\n` +
+      `👤 *Cliente:* ${pedido.cliente}\n` +
+      `📍 *Dirección:* ${pedido.direccion}\n` +
+      `📌 *Estatus:* ${estatusTexto}\n\n` +
       `Por favor confirmar al completar la entrega.`
 
-    return `https://wa.me/?text=${mensaje}`
+    return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+  }
+
+  // Filtrado en tiempo real según la búsqueda
+  const pedidosFiltrados = pedidos.filter(function (pedido) {
+    const termino = busqueda.toLowerCase().trim()
+    if (!termino) return true
+
+    const facturaMatch = pedido.numero_factura
+      ? String(pedido.numero_factura).toLowerCase().includes(termino)
+      : false
+    const clienteMatch = pedido.cliente
+      ? pedido.cliente.toLowerCase().includes(termino)
+      : false
+    const direccionMatch = pedido.direccion
+      ? pedido.direccion.toLowerCase().includes(termino)
+      : false
+
+    return facturaMatch || clienteMatch || direccionMatch
+  })
+
+  // Lógica de Paginación
+  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA) || 1
+  const inicio = (paginaActual - 1) * PEDIDOS_POR_PAGINA
+  const fin = inicio + PEDIDOS_POR_PAGINA
+  const pedidosDeLaPagina = pedidosFiltrados.slice(inicio, fin)
+
+  if (cargando) {
+    return <Skeleton filas={5} />
   }
 
   return (
