@@ -92,7 +92,7 @@ function TablaPedidos() {
     const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
 
     const mensaje = 
-      `📦 *DETALLE DE ENTREGA*\n` +
+      ` *DETALLE DE ENTREGA*\n` +
       `• *Factura:* #${pedido.numero_factura || ''}\n` +
       `• *Cliente:* ${pedido.cliente || ''}\n` +
       `• *Dirección:* ${pedido.direccion || ''}\n` +
