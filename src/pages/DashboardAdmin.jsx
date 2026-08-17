@@ -1,6 +1,7 @@
 // src/pages/DashboardAdmin.jsx
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import LogoFlotante from '../components/LogoFlotante'
 import Indicadores from '../components/Indicadores'
 import CargaPedidos from '../components/CargaPedidos'
 import TablaPedidos from '../components/TablaPedidos'
@@ -14,7 +15,10 @@ function DashboardAdmin() {
     <div style={estilos.pagina}>
       <header style={estilos.header}>
         <div style={estilos.headerContenido}>
-          <h2 style={estilos.titulo}>📦 Panel de Administrador</h2>
+          <div style={estilos.headerIzquierda}>
+            <LogoFlotante />
+            <h2 style={estilos.titulo}>Panel de Administrador</h2>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={estilos.textoRol}>Rol: {perfil?.rol}</span>
             <button onClick={cerrarSesion} style={estilos.botonSalir}>
@@ -49,6 +53,11 @@ const estilos = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '1rem 1.5rem',
+  },
+  headerIzquierda: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
   },
   titulo: {
     margin: 0,

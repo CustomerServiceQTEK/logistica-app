@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import PiePagina from './components/PiePagina'
-import LogoFlotante from './components/LogoFlotante'
 import Registro from './pages/Registro'
 import DashboardAdmin from './pages/DashboardAdmin'
 import DashboardChofer from './pages/DashboardChofer'
@@ -42,7 +41,6 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <LogoFlotante />
         <Routes>
           <Route path="*" element={<RutaPrincipal />} />
         </Routes>

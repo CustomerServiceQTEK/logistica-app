@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import LogoFlotante from '../components/LogoFlotante'
 
 function DashboardChofer() {
   const { perfil, cerrarSesion } = useAuth()
@@ -202,13 +203,16 @@ function DashboardChofer() {
 
   return (
     <div style={estilos.pagina}>
-      {/* ENCABEZADO MÓVIL */}
+      {/* ENCABEZADO MÓVIL CON LOGO INTEGRADO */}
       <header style={estilos.header}>
-        <div>
-          <h2 style={estilos.titulo}>🚚 Mis Entregas</h2>
-          <span style={estilos.subtitulo}>
-            {perfil?.nombre_completo || 'Chofer'}
-          </span>
+        <div style={estilos.headerIzquierda}>
+          <LogoFlotante />
+          <div>
+            <h2 style={estilos.titulo}>Mis Entregas</h2>
+            <span style={estilos.subtitulo}>
+              {perfil?.nombre_completo || 'Chofer'}
+            </span>
+          </div>
         </div>
         <button onClick={cerrarSesion} style={estilos.botonSalir}>
           Salir
@@ -352,6 +356,11 @@ const estilos = {
     top: 0,
     zIndex: 10,
     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  },
+  headerIzquierda: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
   },
   titulo: {
     margin: 0,
