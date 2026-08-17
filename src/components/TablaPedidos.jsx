@@ -1,6 +1,6 @@
 // src/components/TablaPedidos.jsx
-// Muestra todos los pedidos en una tabla, permite asignar un chofer
-// y ver la evidencia subida de cada pedido completado
+// Muestra todos los pedidos en una tabla, permite buscar en tiempo real,
+// asignar un chofer y ver la evidencia subida de cada pedido completado
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
@@ -15,6 +15,7 @@ function TablaPedidos() {
   const [evidencias, setEvidencias] = useState({})
   const [cargando, setCargando] = useState(true)
   const [paginaActual, setPaginaActual] = useState(1)
+  const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
     cargarPedidos()
@@ -79,10 +80,35 @@ function TablaPedidos() {
     cargarEvidencias()
   }
 
-  // Calculamos cuántas páginas hay en total, y qué pedidos van en la página actual
-  const totalPaginas = Math.ceil(pedidos.length / PEDIDOS_POR_PAGINA)
+  // Manejar el cambio en la barra de búsqueda y reiniciar a la primera página
+  function manejarBusqueda(e) {
+    setBusqueda(e.target.value)
+    setPaginaActual(1)
+  }
+
+  // Filtrar pedidos según el texto ingresado (factura, cliente o dirección)
+  const pedidosFiltrados = pedidos.filter(function (p) {
+    const termino = busqueda.toLowerCase().trim()
+    if (!termino) return true
+
+    const factura = String(p.numero_factura || '').toLowerCase()
+    const cliente = String(p.cliente || '').toLowerCase()
+    const direccion = String(p.direccion || '').toLowerCase()
+
+    return (
+      factura.includes(termino) ||
+      cliente.includes(termino) ||
+      direccion.includes(termino)
+    )
+  })
+
+  // Calculamos cuántas páginas hay en total sobre los datos filtrados
+  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA)
   const indiceInicio = (paginaActual - 1) * PEDIDOS_POR_PAGINA
-  const pedidosDeLaPagina = pedidos.slice(indiceInicio, indiceInicio + PEDIDOS_POR_PAGINA)
+  const pedidosDeLaPagina = pedidosFiltrados.slice(
+    indiceInicio,
+    indiceInicio + PEDIDOS_POR_PAGINA
+  )
 
   if (cargando) {
     return (
@@ -100,10 +126,35 @@ function TablaPedidos() {
   return (
     <div style={estilos.contenedor}>
       <div style={estilos.encabezado}>
-        <h3 style={estilos.titulo}>📑 Lista de pedidos ({pedidos.length})</h3>
+        <h3 style={estilos.titulo}>
+          📑 Lista de pedidos ({pedidosFiltrados.length})
+        </h3>
         <button onClick={actualizarTodo} style={estilos.botonActualizar}>
           🔄 Actualizar
         </button>
+      </div>
+
+      {/* Campo de Búsqueda Rápida */}
+      <div style={estilos.contenedorBuscador}>
+        <span style={{ fontSize: '1.1rem' }}>🔍</span>
+        <input
+          type="text"
+          placeholder="Buscar por número de factura, cliente o dirección..."
+          value={busqueda}
+          onChange={manejarBusqueda}
+          style={estilos.inputBuscador}
+        />
+        {busqueda && (
+          <button
+            onClick={function () {
+              setBusqueda('')
+              setPaginaActual(1)
+            }}
+            style={estilos.botonLimpiar}
+          >
+            ✖
+          </button>
+        )}
       </div>
 
       <div style={{ overflowX: 'auto' }}>
@@ -125,18 +176,30 @@ function TablaPedidos() {
             {pedidosDeLaPagina.map(function (pedido) {
               return (
                 <tr key={pedido.id} style={estilos.fila}>
-                  <td style={{ ...estilos.celda, fontWeight: 'bold' }}>{pedido.numero_factura}</td>
+                  <td style={{ ...estilos.celda, fontWeight: 'bold' }}>
+                    {pedido.numero_factura}
+                  </td>
                   <td style={estilos.celda}>{pedido.cliente}</td>
                   <td style={estilos.celda}>{pedido.direccion}</td>
                   <td style={estilos.celda}>
-                    <span style={pedido.estatus === 'completada' ? estilos.badgeCompletada : estilos.badgePendiente}>
-                      {pedido.estatus === 'completada' ? '✅ Completada' : '⏳ Pendiente'}
+                    <span
+                      style={
+                        pedido.estatus === 'completada'
+                          ? estilos.badgeCompletada
+                          : estilos.badgePendiente
+                      }
+                    >
+                      {pedido.estatus === 'completada'
+                        ? '✅ Completada'
+                        : '⏳ Pendiente'}
                     </span>
                   </td>
                   <td style={estilos.celda}>
                     <select
                       value={pedido.chofer_id || ''}
-                      onChange={function (e) { asignarChofer(pedido.id, e.target.value) }}
+                      onChange={function (e) {
+                        asignarChofer(pedido.id, e.target.value)
+                      }}
                       style={estilos.select}
                     >
                       <option value="">Sin asignar</option>
@@ -153,13 +216,22 @@ function TablaPedidos() {
                     {new Date(pedido.creado_en).toLocaleDateString()}
                   </td>
                   <td style={estilos.celda}>
-                    {evidencias[pedido.id]
-                      ? new Date(evidencias[pedido.id].fecha).toLocaleDateString()
-                      : <span style={{ color: '#cbd5e1' }}>—</span>}
+                    {evidencias[pedido.id] ? (
+                      new Date(
+                        evidencias[pedido.id].fecha
+                      ).toLocaleDateString()
+                    ) : (
+                      <span style={{ color: '#cbd5e1' }}>—</span>
+                    )}
                   </td>
                   <td style={estilos.celda}>
                     {evidencias[pedido.id] ? (
-                      <a href={evidencias[pedido.id].url} target="_blank" rel="noopener noreferrer" style={estilos.linkEvidencia}>
+                      <a
+                        href={evidencias[pedido.id].url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={estilos.linkEvidencia}
+                      >
                         📎 Ver archivo
                       </a>
                     ) : (
@@ -167,7 +239,10 @@ function TablaPedidos() {
                     )}
                   </td>
                   <td style={estilos.celda}>
-                    <EliminarPedido pedido={pedido} onEliminado={actualizarTodo} />
+                    <EliminarPedido
+                      pedido={pedido}
+                      onEliminado={actualizarTodo}
+                    />
                   </td>
                 </tr>
               )
@@ -176,13 +251,23 @@ function TablaPedidos() {
         </table>
       </div>
 
-      {pedidos.length === 0 && <p style={{ color: '#64748b', marginTop: '1rem' }}>No hay pedidos cargados todavía.</p>}
+      {pedidosFiltrados.length === 0 && (
+        <p style={{ color: '#64748b', marginTop: '1rem', textAlign: 'center' }}>
+          {busqueda
+            ? 'No se encontraron facturas o coincidencias con "' + busqueda + '".'
+            : 'No hay pedidos cargados todavía.'}
+        </p>
+      )}
 
-      {/* Controles de paginación, solo se muestran si hay más de 1 página */}
+      {/* Controles de paginación */}
       {totalPaginas > 1 && (
         <div style={estilos.paginacion}>
           <button
-            onClick={function () { setPaginaActual(function (p) { return p - 1 }) }}
+            onClick={function () {
+              setPaginaActual(function (p) {
+                return p - 1
+              })
+            }}
             disabled={paginaActual === 1}
             style={estilos.botonPagina}
           >
@@ -194,7 +279,11 @@ function TablaPedidos() {
           </span>
 
           <button
-            onClick={function () { setPaginaActual(function (p) { return p + 1 }) }}
+            onClick={function () {
+              setPaginaActual(function (p) {
+                return p + 1
+              })
+            }}
             disabled={paginaActual === totalPaginas}
             style={estilos.botonPagina}
           >
@@ -218,7 +307,7 @@ const estilos = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '1.2rem',
+    marginBottom: '1rem',
   },
   titulo: {
     margin: 0,
@@ -231,6 +320,31 @@ const estilos = {
     borderRadius: '8px',
     cursor: 'pointer',
     fontSize: '0.85rem',
+  },
+  contenedorBuscador: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    background: '#f8fafc',
+    border: '1px solid #cbd5e1',
+    borderRadius: '8px',
+    padding: '0.5rem 0.8rem',
+    marginBottom: '1.2rem',
+  },
+  inputBuscador: {
+    border: 'none',
+    background: 'transparent',
+    outline: 'none',
+    width: '100%',
+    fontSize: '0.95rem',
+    color: '#1e293b',
+  },
+  botonLimpiar: {
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer',
+    color: '#94a3b8',
+    fontSize: '0.9rem',
   },
   tabla: {
     width: '100%',
