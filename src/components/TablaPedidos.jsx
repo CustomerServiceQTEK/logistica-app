@@ -87,27 +87,18 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace dinámico de WhatsApp garantizando la codificación de emojis
+  // Genera el enlace de WhatsApp usando saltos de línea y emojis compatibles con API de WhatsApp
   function obtenerUrlWhatsApp(pedido) {
-    const camion = '\u{1F69A}'
-    const usuario = '\u{1F464}'
-    const pin = '\u{1F420}'
-    const chincheta = '\u{1F430}'
-    const estatusIcono = pedido.estatus === 'completada' ? '\u{2705}' : '\u{23F3}'
-    const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
+    const estatusTexto = pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'
 
-    const lineas = [
-      `${camion} *Detalle de Entrega - Factura #${pedido.numero_factura}*`,
-      '',
-      `${usuario} *Cliente:* ${pedido.cliente}`,
-      `📍 *Dirección:* ${pedido.direccion}`,
-      `📌 *Estatus:* ${estatusTexto} ${estatusIcono}`,
-      '',
-      'Por favor confirmar al completar la entrega.'
-    ]
+    const mensaje = 
+      `📦 *Detalle de Entrega - Factura #${pedido.numero_factura}*%0A%0A` +
+      `👤 *Cliente:* ${pedido.cliente}%0A` +
+      `📍 *Dirección:* ${pedido.direccion}%0A` +
+      `📌 *Estatus:* ${estatusTexto}%0A%0A` +
+      `Por favor confirmar al completar la entrega.`
 
-    const mensajeTexto = lineas.join('\n')
-    return `https://wa.me/?text=${encodeURIComponent(mensajeTexto)}`
+    return `https://api.whatsapp.com/send?text=${mensaje}`
   }
 
   const pedidosFiltrados = pedidos.filter(function (p) {
