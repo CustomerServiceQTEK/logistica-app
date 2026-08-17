@@ -87,18 +87,19 @@ function TablaPedidos() {
     setPaginaActual(1)
   }
 
-  // Genera el enlace de WhatsApp usando saltos de línea y emojis compatibles con API de WhatsApp
+  // Genera el enlace de WhatsApp con formato seguro para URLs
   function obtenerUrlWhatsApp(pedido) {
-    const estatusTexto = pedido.estatus === 'completada' ? 'Completada ✅' : 'Pendiente ⏳'
+    const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
 
     const mensaje = 
-      `📦 *Detalle de Entrega - Factura #${pedido.numero_factura}*%0A%0A` +
-      `👤 *Cliente:* ${pedido.cliente}%0A` +
-      `📍 *Dirección:* ${pedido.direccion}%0A` +
-      `📌 *Estatus:* ${estatusTexto}%0A%0A` +
+      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura || ''}*\n\n` +
+      `• *Cliente:* ${pedido.cliente || ''}\n` +
+      `• *Dirección:* ${pedido.direccion || ''}\n` +
+      `• *Estatus:* ${estatusTexto}\n\n` +
       `Por favor confirmar al completar la entrega.`
 
-    return `https://api.whatsapp.com/send?text=${mensaje}`
+    // encodeURIComponent codifica espacios, saltos de línea (\n) y caracteres especiales
+    return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
   }
 
   const pedidosFiltrados = pedidos.filter(function (p) {
