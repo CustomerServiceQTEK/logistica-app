@@ -13,6 +13,10 @@ function DashboardChofer() {
   const [eliminandoEvId, setEliminandoEvId] = useState(null)
   const [mensaje, setMensaje] = useState('')
 
+  // NUEVOS ESTADOS: Filtro activo por defecto en 'pendiente' y modal de confirmación
+  const [filtroEstatus, setFiltroEstatus] = useState('pendiente')
+  const [evidenciaAEliminar, setEvidenciaAEliminar] = useState(null) // Para el modal flotante
+
   useEffect(() => {
     if (perfil?.id) {
       cargarMisPedidos()
@@ -22,7 +26,6 @@ function DashboardChofer() {
   async function cargarMisPedidos() {
     setCargando(true)
     try {
-      // Garantizar que obtenemos el ID del usuario autenticado
       const { data: userData } = await supabase.auth.getUser()
       const usuarioId = perfil?.id || userData?.user?.id
 
@@ -36,7 +39,6 @@ function DashboardChofer() {
 
       if (!error && data) {
         setPedidos(data)
-        // Cargar las evidencias asociadas a estos pedidos
         const pedidoIds = data.map((p) => p.id)
         if (pedidoIds.length > 0) {
           cargarEvidencias(pedidoIds)
@@ -94,7 +96,6 @@ function DashboardChofer() {
     setMensaje('')
 
     try {
-      // Obtener de forma segura el ID del chofer autenticado
       const { data: userData } = await supabase.auth.getUser()
       const choferIdActual = perfil?.id || userData?.user?.id
 
@@ -105,21 +106,18 @@ function DashboardChofer() {
       const extension = archivo.name.split('.').pop()
       const nombreArchivo = `${pedidoId}_${Date.now()}.${extension}`
 
-      // 1. Subir al Storage
       const { error: errorStorage } = await supabase.storage
         .from('evidencias')
         .upload(nombreArchivo, archivo, { upsert: true })
 
       if (errorStorage) throw errorStorage
 
-      // 2. URL pública
       const { data: urlData } = supabase.storage
         .from('evidencias')
         .getPublicUrl(nombreArchivo)
 
       const archivoUrl = urlData.publicUrl
 
-      // 3. Registrar en base de datos especificando explícitamente el chofer_id
       const { data: evidenciaGuardada, error: errorTabla } = await supabase
         .from('evidencias')
         .insert({
@@ -132,13 +130,11 @@ function DashboardChofer() {
 
       if (errorTabla) throw errorTabla
 
-      // Actualizar estado local de evidencias
       setEvidencias((prev) => ({
         ...prev,
         [pedidoId]: [evidenciaGuardada, ...(prev[pedidoId] || [])],
       }))
 
-      // Cambiar estatus a completada
       await cambiarEstatus(pedidoId, 'completada')
       setMensaje('✅ Evidencia subida correctamente.')
     } catch (error) {
@@ -149,37 +145,33 @@ function DashboardChofer() {
     }
   }
 
-  // ELIMINAR / DESHACER ADJUNTO
-  async function eliminarEvidencia(evidencia, pedidoId) {
-    const confirmar = window.confirm(
-      '¿Estás seguro de que deseas eliminar este archivo adjunto?'
-    )
-    if (!confirmar) return
+  // ELIMINAR / DESHACER ADJUNTO (Ejecutado tras confirmar en el modal)
+  async function confirmarEliminarEvidencia() {
+    if (!evidenciaAEliminar) return
+    const { ev, pedidoId } = evidenciaAEliminar
 
-    setEliminandoEvId(evidencia.id)
+    setEliminandoEvId(ev.id)
     setMensaje('')
+    setEvidenciaAEliminar(null) // Cerrar modal
 
     try {
-      // 1. Intentar borrar el archivo del Storage de Supabase
-      if (evidencia.archivo_url) {
-        const partesUrl = evidencia.archivo_url.split('/')
+      if (ev.archivo_url) {
+        const partesUrl = ev.archivo_url.split('/')
         const nombreArchivo = partesUrl[partesUrl.length - 1]
         if (nombreArchivo) {
           await supabase.storage.from('evidencias').remove([nombreArchivo])
         }
       }
 
-      // 2. Eliminar el registro de la tabla 'evidencias'
       const { error } = await supabase
         .from('evidencias')
         .delete()
-        .eq('id', evidencia.id)
+        .eq('id', ev.id)
 
       if (error) throw error
 
-      // 3. Actualizar estado local
       const evidenciasRestantes = (evidencias[pedidoId] || []).filter(
-        (ev) => ev.id !== evidencia.id
+        (item) => item.id !== ev.id
       )
 
       setEvidencias((prev) => ({
@@ -187,7 +179,6 @@ function DashboardChofer() {
         [pedidoId]: evidenciasRestantes,
       }))
 
-      // 4. Si ya no le quedan evidencias al pedido, regresar a "pendiente"
       if (evidenciasRestantes.length === 0) {
         await cambiarEstatus(pedidoId, 'pendiente')
       }
@@ -200,6 +191,16 @@ function DashboardChofer() {
       setEliminandoEvId(null)
     }
   }
+
+  // Lógica de filtrado
+  const pedidosFiltrados = pedidos.filter((p) => {
+    if (filtroEstatus === 'pendiente') return p.estatus !== 'completada'
+    if (filtroEstatus === 'completada') return p.estatus === 'completada'
+    return true
+  })
+
+  const conteoPendientes = pedidos.filter((p) => p.estatus !== 'completada').length
+  const conteoCompletadas = pedidos.filter((p) => p.estatus === 'completada').length
 
   return (
     <div style={estilos.pagina}>
@@ -223,20 +224,46 @@ function DashboardChofer() {
       <main style={estilos.contenido}>
         {mensaje && <div style={estilos.alerta}>{mensaje}</div>}
 
+        {/* PESTAÑAS / TABS DE FILTRO */}
+        <div style={estilos.contenedorTabs}>
+          <button
+            onClick={() => setFiltroEstatus('pendiente')}
+            style={{
+              ...estilos.tabBoton,
+              ...(filtroEstatus === 'pendiente' ? estilos.tabActivoPendiente : estilos.tabInactivo)
+            }}
+          >
+            ⏳ Por Entregar ({conteoPendientes})
+          </button>
+          <button
+            onClick={() => setFiltroEstatus('completada')}
+            style={{
+              ...estilos.tabBoton,
+              ...(filtroEstatus === 'completada' ? estilos.tabActivoCompletado : estilos.tabInactivo)
+            }}
+          >
+            ✅ Entregadas ({conteoCompletadas})
+          </button>
+        </div>
+
         {cargando ? (
           <p style={{ textAlign: 'center', color: '#64748b' }}>
             ⏳ Cargando tus pedidos...
           </p>
-        ) : pedidos.length === 0 ? (
+        ) : pedidosFiltrados.length === 0 ? (
           <div style={estilos.sinPedidos}>
-            <p>🎉 No tienes entregas asignadas.</p>
+            <p>
+              {filtroEstatus === 'pendiente' 
+                ? '🎉 ¡Excelente! No tienes entregas pendientes por ahora.' 
+                : 'No hay entregas completadas en esta lista.'}
+            </p>
             <button onClick={cargarMisPedidos} style={estilos.botonRefrescar}>
               🔄 Actualizar lista
             </button>
           </div>
         ) : (
           <div style={estilos.listaTarjetas}>
-            {pedidos.map((pedido) => {
+            {pedidosFiltrados.map((pedido) => {
               const esCompletado = pedido.estatus === 'completada'
               const estaCargandoArchivo = subiendoId === pedido.id
               const listaEvidencias = evidencias[pedido.id] || []
@@ -287,7 +314,7 @@ function DashboardChofer() {
                               📄 Evidencia {index + 1}
                             </a>
                             <button
-                              onClick={() => eliminarEvidencia(ev, pedido.id)}
+                              onClick={() => setEvidenciaAEliminar({ ev, pedidoId: pedido.id })}
                               disabled={eliminandoEvId === ev.id}
                               style={estilos.botonEliminarEvidencia}
                               title="Eliminar este adjunto"
@@ -335,10 +362,40 @@ function DashboardChofer() {
           </div>
         )}
       </main>
+
+      {/* MODAL FLOTANTE DE CONFIRMACIÓN */}
+      {evidenciaAEliminar && (
+        <div style={estilos.modalOverlay}>
+          <div style={estilos.modalCaja}>
+            <h3 style={{ marginTop: 0, color: '#991b1b' }}>⚠️ Confirmación</h3>
+            <p style={{ fontSize: '0.9rem', color: '#334155' }}>
+              ¿Estás seguro de que deseas eliminar este archivo adjunto?
+            </p>
+            <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              Esta acción regresará el pedido a la lista de pendientes si se queda sin evidencias.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '1.2rem' }}>
+              <button
+                onClick={() => setEvidenciaAEliminar(null)}
+                style={estilos.botonCancelarModal}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarEliminarEvidencia}
+                style={estilos.botonConfirmarModal}
+              >
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+// Estilos heredados intactos + estilos para las pestañas y el modal
 const estilos = {
   pagina: {
     minHeight: '100vh',
@@ -384,6 +441,33 @@ const estilos = {
     padding: '1rem',
     maxWidth: '500px',
     margin: '0 auto',
+  },
+  contenedorTabs: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '1.2rem',
+  },
+  tabBoton: {
+    flex: 1,
+    padding: '0.75rem 0.5rem',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  tabActivoPendiente: {
+    background: '#2563eb',
+    color: '#ffffff',
+  },
+  tabActivoCompletado: {
+    background: '#16a34a',
+    color: '#ffffff',
+  },
+  tabInactivo: {
+    background: '#e2e8f0',
+    color: '#475569',
   },
   alerta: {
     background: '#e0f2fe',
@@ -532,6 +616,48 @@ const estilos = {
     fontSize: '0.85rem',
     cursor: 'pointer',
     display: 'inline-block',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+    padding: '1rem',
+  },
+  modalCaja: {
+    background: '#ffffff',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    maxWidth: '360px',
+    width: '100%',
+    textAlign: 'center',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+  },
+  botonCancelarModal: {
+    flex: 1,
+    padding: '0.6rem',
+    background: '#e2e8f0',
+    color: '#1e293b',
+    border: 'none',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+  },
+  botonConfirmarModal: {
+    flex: 1,
+    padding: '0.6rem',
+    background: '#dc2626',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
   },
 }
 
