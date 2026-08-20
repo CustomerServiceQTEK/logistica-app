@@ -116,8 +116,15 @@ function TablaComparativaChoferes({ refrescar }) {
   }
 
   if (datosChoferes.length === 0) {
-    return null
-  }
+  return (
+    <div style={estilos.contenedor}>
+      <h3 style={estilos.titulo}>📊 Comparativa de Desempeño por Chofer</h3>
+      <p style={{ color: '#64748b', margin: 0 }}>
+        No se encontraron choferes con pedidos asignados para generar la comparativa.
+      </p>
+    </div>
+  )
+}
 
   return (
     <div style={estilos.contenedor}>
