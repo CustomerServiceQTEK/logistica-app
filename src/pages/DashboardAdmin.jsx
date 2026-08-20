@@ -17,23 +17,39 @@ function DashboardAdmin() {
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
 
   useEffect(() => {
-    cargarChoferes()
-  }, [])
+    obtenerChoferesDesdePedidos()
+  }, [refrescar])
 
-  // Cargar lista de choferes desde la base de datos
-  async function cargarChoferes() {
+  // OPCIÓN 3: Extraer choferes directamente desde los pedidos asignados
+  async function obtenerChoferesDesdePedidos() {
     try {
-      const { data, error } = await supabase
+      // 1. Consultar pedidos que tengan un chofer asignado
+      const { data: pedidosData, error: errorPedidos } = await supabase
+        .from('pedidos')
+        .select('chofer_id')
+        .not('chofer_id', 'is', null)
+
+      if (errorPedidos || !pedidosData) return
+
+      // Obtener IDs únicos de los choferes
+      const idsUnicos = [...new Set(pedidosData.map((p) => p.chofer_id))]
+
+      if (idsUnicos.length === 0) {
+        setChoferes([])
+        return
+      }
+
+      // 2. Traer los nombres/datos de esos IDs desde la tabla de perfiles
+      const { data: perfilesData } = await supabase
         .from('perfiles')
         .select('id, nombre_completo, email')
-        .eq('rol', 'chofer')
-        .order('nombre_completo', { ascending: true })
+        .in('id', idsUnicos)
 
-      if (!error && data) {
-        setChoferes(data)
+      if (perfilesData) {
+        setChoferes(perfilesData)
       }
     } catch (e) {
-      console.error('Error al cargar la lista de choferes:', e)
+      console.error('Error al obtener choferes desde pedidos:', e)
     }
   }
 
@@ -68,13 +84,13 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.email}
+                {ch.nombre_completo || ch.email || `Chofer ID: ${ch.id}`}
               </option>
             ))}
           </select>
         </div>
 
-        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
+        {/* COMPONENTES DE MÉTRICAS */}
         <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         
