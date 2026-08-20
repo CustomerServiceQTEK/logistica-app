@@ -20,17 +20,18 @@ function DashboardAdmin() {
     cargarChoferes()
   }, [])
 
+  // Cargar únicamente usuarios con rol 'chofer' de las columnas reales (id, nombre_completo, rol)
   async function cargarChoferes() {
     try {
-      // Consultamos únicamente campos existentes (id, nombre_completo, email) sin pedir la columna 'rol'
       const { data, error } = await supabase
         .from('perfiles')
-        .select('id, nombre_completo, email')
+        .select('id, nombre_completo, rol')
+        .eq('rol', 'chofer')
 
       if (!error && data) {
         setChoferes(data)
       } else if (error) {
-        console.error('Error al cargar perfiles:', error.message)
+        console.error('Error al cargar choferes:', error.message)
       }
     } catch (e) {
       console.error('Error al cargar choferes:', e)
@@ -46,7 +47,7 @@ function DashboardAdmin() {
             <h2 style={estilos.titulo}>Panel de Administrador</h2>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={estilos.textoRol}>Rol: {perfil?.rol || 'Admin'}</span>
+            <span style={estilos.textoRol}>Rol: {perfil?.rol || 'Administrador'}</span>
             <button onClick={cerrarSesion} style={estilos.botonSalir}>
               Cerrar sesión
             </button>
@@ -68,7 +69,7 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.email || `Usuario (${ch.id.slice(0, 8)})`}
+                {ch.nombre_completo || 'Chofer sin nombre'}
               </option>
             ))}
           </select>
