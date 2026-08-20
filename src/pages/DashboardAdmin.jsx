@@ -17,39 +17,28 @@ function DashboardAdmin() {
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
 
   useEffect(() => {
-    obtenerChoferesDesdePedidos()
-  }, [refrescar])
+    cargarListaChoferes()
+  }, [])
 
-  // OPCIÓN 3: Extraer choferes directamente desde los pedidos asignados
-  async function obtenerChoferesDesdePedidos() {
+  async function cargarListaChoferes() {
     try {
-      // 1. Consultar pedidos que tengan un chofer asignado
-      const { data: pedidosData, error: errorPedidos } = await supabase
-        .from('pedidos')
-        .select('chofer_id')
-        .not('chofer_id', 'is', null)
-
-      if (errorPedidos || !pedidosData) return
-
-      // Obtener IDs únicos de los choferes
-      const idsUnicos = [...new Set(pedidosData.map((p) => p.chofer_id))]
-
-      if (idsUnicos.length === 0) {
-        setChoferes([])
-        return
-      }
-
-      // 2. Traer los nombres/datos de esos IDs desde la tabla de perfiles
-      const { data: perfilesData } = await supabase
+      // 1. Obtener todos los perfiles
+      const { data: perfilesData, error } = await supabase
         .from('perfiles')
-        .select('id, nombre_completo, email')
-        .in('id', idsUnicos)
+        .select('id, nombre_completo, email, rol')
 
-      if (perfilesData) {
-        setChoferes(perfilesData)
+      if (!error && perfilesData) {
+        // Filtrar choferes aceptando variaciones de texto ('chofer', 'Chofer', 'CHOFER', etc.)
+        const listaFiltrada = perfilesData.filter((p) => {
+          const rolTexto = (p.rol || '').toLowerCase()
+          return rolTexto === 'chofer' || rolTexto === 'driver'
+        })
+
+        // Si por alguna razón no encuentra por rol, mostramos todos los perfiles disponibles
+        setChoferes(listaFiltrada.length > 0 ? listaFiltrada : perfilesData)
       }
     } catch (e) {
-      console.error('Error al obtener choferes desde pedidos:', e)
+      console.error('Error al obtener choferes:', e)
     }
   }
 
@@ -84,13 +73,13 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.email || `Chofer ID: ${ch.id}`}
+                {ch.nombre_completo || ch.email || `Usuario ID: ${ch.id.slice(0, 8)}`}
               </option>
             ))}
           </select>
         </div>
 
-        {/* COMPONENTES DE MÉTRICAS */}
+        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
         <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         
