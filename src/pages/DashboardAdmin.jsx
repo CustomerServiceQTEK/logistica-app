@@ -7,6 +7,7 @@ import Indicadores from '../components/Indicadores'
 import CargaPedidos from '../components/CargaPedidos'
 import TablaPedidos from '../components/TablaPedidos'
 import MetricasTiempos from '../components/MetricasTiempos'
+import TablaComparativaChoferes from '../components/TablaComparativaChoferes'
 
 function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
@@ -20,7 +21,6 @@ function DashboardAdmin() {
     cargarChoferesDesdePedidos()
   }, [refrescar])
 
-  // Obtener choferes consultando los pedidos asignados con relacion de clave foranea
   async function cargarChoferesDesdePedidos() {
     try {
       const { data, error } = await supabase
@@ -29,7 +29,6 @@ function DashboardAdmin() {
         .not('chofer_id', 'is', null)
 
       if (!error && data) {
-        // Extraer perfiles de choferes unicos
         const mapaChoferes = {}
         data.forEach((p) => {
           if (p.perfiles && p.perfiles.id) {
@@ -86,10 +85,13 @@ function DashboardAdmin() {
           </select>
         </div>
 
-        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
+        {/* COMPONENTES DE MÉTRICAS */}
         <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         
+        {/* NUEVA TABLA COMPARATIVA POR CHOFER */}
+        <TablaComparativaChoferes refrescar={refrescar} />
+
         <CargaPedidos onExito={() => setRefrescar((valor) => valor + 1)} />
         <TablaPedidos key={'tabla-' + refrescar} />
       </div>
