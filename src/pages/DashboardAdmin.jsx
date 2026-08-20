@@ -17,24 +17,35 @@ function DashboardAdmin() {
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
 
   useEffect(() => {
-    cargarChoferes()
-  }, [])
+    cargarChoferesDesdePedidos()
+  }, [refrescar])
 
-  // Cargar únicamente usuarios con rol 'chofer' de las columnas reales (id, nombre_completo, rol)
-  async function cargarChoferes() {
+  // Obtener choferes consultando los pedidos asignados con relacion de clave foranea
+  async function cargarChoferesDesdePedidos() {
     try {
       const { data, error } = await supabase
-        .from('perfiles')
-        .select('id, nombre_completo, rol')
-        .eq('rol', 'chofer')
+        .from('pedidos')
+        .select('chofer_id, perfiles:chofer_id(id, nombre_completo)')
+        .not('chofer_id', 'is', null)
 
       if (!error && data) {
-        setChoferes(data)
-      } else if (error) {
-        console.error('Error al cargar choferes:', error.message)
+        // Extraer perfiles de choferes unicos
+        const mapaChoferes = {}
+        data.forEach((p) => {
+          if (p.perfiles && p.perfiles.id) {
+            mapaChoferes[p.perfiles.id] = p.perfiles.nombre_completo || 'Chofer sin nombre'
+          }
+        })
+
+        const listaUnica = Object.keys(mapaChoferes).map((id) => ({
+          id: id,
+          nombre_completo: mapaChoferes[id],
+        }))
+
+        setChoferes(listaUnica)
       }
     } catch (e) {
-      console.error('Error al cargar choferes:', e)
+      console.error('Error al obtener choferes desde pedidos:', e)
     }
   }
 
@@ -69,7 +80,7 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || 'Chofer sin nombre'}
+                {ch.nombre_completo}
               </option>
             ))}
           </select>
