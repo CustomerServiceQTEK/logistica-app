@@ -12,37 +12,23 @@ function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
   
-  // ESTADOS PARA EL FILTRO DE CHOFER
   const [choferes, setChoferes] = useState([])
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
+  const [errorDetalle, setErrorDetalle] = useState('')
 
   useEffect(() => {
-    cargarChoferesDirectos()
+    probarConsultas()
   }, [])
 
-  // Cargar choferes con la misma consulta exacta que usa TablaPedidos.jsx
-  async function cargarChoferesDirectos() {
-    try {
-      // 1. Intentar por la consulta exacta de TablaPedidos
-      const { data, error } = await supabase
-        .from('perfiles')
-        .select('id, nombre_completo, email')
-        .eq('rol', 'chofer')
-
-      if (!error && data && data.length > 0) {
-        setChoferes(data)
-      } else {
-        // 2. Si viene vacía, traer todos los perfiles sin filtrar rol
-        const { data: todosData } = await supabase
-          .from('perfiles')
-          .select('id, nombre_completo, email')
-
-        if (todosData) {
-          setChoferes(todosData)
-        }
-      }
-    } catch (e) {
-      console.error('Error al cargar choferes:', e)
+  async function probarConsultas() {
+    // Probar traernos la tabla de perfiles limpia
+    const { data, error } = await supabase.from('perfiles').select('*')
+    
+    if (error) {
+      console.error('Error detallado de Supabase:', error)
+      setErrorDetalle(`Error en Supabase: ${error.message} (Código: ${error.code})`)
+    } else if (data) {
+      setChoferes(data)
     }
   }
 
@@ -64,6 +50,13 @@ function DashboardAdmin() {
       </header>
 
       <div style={estilos.contenido}>
+        {/* MENSAJE DE DIAGNÓSTICO EN PANTALLA */}
+        {errorDetalle && (
+          <div style={{ padding: '1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1rem', fontWeight: 'bold' }}>
+            ⚠️ {errorDetalle}
+          </div>
+        )}
+
         {/* BARRA DE FILTRO POR CHOFER */}
         <div style={estilos.contenedorFiltro}>
           <label style={estilos.labelFiltro}>
@@ -77,13 +70,12 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.email || ch.id.slice(0, 8)}
+                {ch.nombre_completo || ch.nombre || ch.email || ch.id}
               </option>
             ))}
           </select>
         </div>
 
-        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
         <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         
@@ -95,75 +87,17 @@ function DashboardAdmin() {
 }
 
 const estilos = {
-  pagina: {
-    minHeight: '100vh',
-  },
-  header: {
-    background: '#1e293b',
-    borderBottom: '1px solid #334155',
-  },
-  headerContenido: {
-    maxWidth: '1100px',
-    margin: '0 auto',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1rem 1.5rem',
-  },
-  headerIzquierda: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  titulo: {
-    margin: 0,
-    color: '#fff',
-    fontSize: '1.3rem',
-  },
-  textoRol: {
-    color: '#cbd5e1',
-    fontSize: '0.9rem',
-    textTransform: 'capitalize',
-  },
-  botonSalir: {
-    padding: '0.5rem 1rem',
-    background: '#dc2626',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-  },
-  contenido: {
-    maxWidth: '1100px',
-    margin: '0 auto',
-    padding: '2rem 1.5rem',
-  },
-  contenedorFiltro: {
-    background: '#ffffff',
-    border: '1px solid #cbd5e1',
-    borderRadius: '10px',
-    padding: '1rem 1.2rem',
-    marginBottom: '1.5rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  },
-  labelFiltro: {
-    color: '#1e293b',
-    fontSize: '0.95rem',
-  },
-  selectFiltro: {
-    padding: '0.5rem 1rem',
-    borderRadius: '6px',
-    border: '1px solid #94a3b8',
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
-    color: '#0f172a',
-    outline: 'none',
-    cursor: 'pointer',
-  },
+  pagina: { minHeight: '100vh' },
+  header: { background: '#1e293b', borderBottom: '1px solid #334155' },
+  headerContenido: { maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem' },
+  headerIzquierda: { display: 'flex', alignItems: 'center', gap: '12px' },
+  titulo: { margin: 0, color: '#fff', fontSize: '1.3rem' },
+  textoRol: { color: '#cbd5e1', fontSize: '0.9rem', textTransform: 'capitalize' },
+  botonSalir: { padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
+  contenido: { maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem' },
+  contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
+  labelFiltro: { color: '#1e293b', fontSize: '0.95rem' },
+  selectFiltro: { padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #94a3b8', fontSize: '0.9rem', fontWeight: 'bold', color: '#0f172a', outline: 'none', cursor: 'pointer' },
 }
 
 export default DashboardAdmin
