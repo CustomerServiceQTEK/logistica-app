@@ -12,23 +12,25 @@ function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
   
+  // ESTADOS PARA EL FILTRO DE CHOFER
   const [choferes, setChoferes] = useState([])
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
-  const [errorDetalle, setErrorDetalle] = useState('')
 
   useEffect(() => {
-    probarConsultas()
+    cargarChoferes()
   }, [])
 
-  async function probarConsultas() {
-    // Probar traernos la tabla de perfiles limpia
-    const { data, error } = await supabase.from('perfiles').select('*')
-    
-    if (error) {
-      console.error('Error detallado de Supabase:', error)
-      setErrorDetalle(`Error en Supabase: ${error.message} (Código: ${error.code})`)
-    } else if (data) {
-      setChoferes(data)
+  async function cargarChoferes() {
+    try {
+      const { data, error } = await supabase.from('perfiles').select('id, nombre_completo, email, rol')
+
+      if (!error && data) {
+        // Filtramos por rol chofer o mostramos los perfiles si el rol no está asignado
+        const listaChoferes = data.filter(p => (p.rol || '').toLowerCase() === 'chofer')
+        setChoferes(listaChoferes.length > 0 ? listaChoferes : data)
+      }
+    } catch (e) {
+      console.error('Error al cargar choferes:', e)
     }
   }
 
@@ -50,13 +52,6 @@ function DashboardAdmin() {
       </header>
 
       <div style={estilos.contenido}>
-        {/* MENSAJE DE DIAGNÓSTICO EN PANTALLA */}
-        {errorDetalle && (
-          <div style={{ padding: '1rem', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '1rem', fontWeight: 'bold' }}>
-            ⚠️ {errorDetalle}
-          </div>
-        )}
-
         {/* BARRA DE FILTRO POR CHOFER */}
         <div style={estilos.contenedorFiltro}>
           <label style={estilos.labelFiltro}>
@@ -70,12 +65,13 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.nombre || ch.email || ch.id}
+                {ch.nombre_completo || ch.email || `Chofer (${ch.id.slice(0, 5)}...)`}
               </option>
             ))}
           </select>
         </div>
 
+        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
         <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
         
