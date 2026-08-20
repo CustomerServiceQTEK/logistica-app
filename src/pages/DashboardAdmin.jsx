@@ -17,28 +17,32 @@ function DashboardAdmin() {
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
 
   useEffect(() => {
-    cargarListaChoferes()
+    cargarChoferesDirectos()
   }, [])
 
-  async function cargarListaChoferes() {
+  // Cargar choferes con la misma consulta exacta que usa TablaPedidos.jsx
+  async function cargarChoferesDirectos() {
     try {
-      // 1. Obtener todos los perfiles
-      const { data: perfilesData, error } = await supabase
+      // 1. Intentar por la consulta exacta de TablaPedidos
+      const { data, error } = await supabase
         .from('perfiles')
-        .select('id, nombre_completo, email, rol')
+        .select('id, nombre_completo, email')
+        .eq('rol', 'chofer')
 
-      if (!error && perfilesData) {
-        // Filtrar choferes aceptando variaciones de texto ('chofer', 'Chofer', 'CHOFER', etc.)
-        const listaFiltrada = perfilesData.filter((p) => {
-          const rolTexto = (p.rol || '').toLowerCase()
-          return rolTexto === 'chofer' || rolTexto === 'driver'
-        })
+      if (!error && data && data.length > 0) {
+        setChoferes(data)
+      } else {
+        // 2. Si viene vacía, traer todos los perfiles sin filtrar rol
+        const { data: todosData } = await supabase
+          .from('perfiles')
+          .select('id, nombre_completo, email')
 
-        // Si por alguna razón no encuentra por rol, mostramos todos los perfiles disponibles
-        setChoferes(listaFiltrada.length > 0 ? listaFiltrada : perfilesData)
+        if (todosData) {
+          setChoferes(todosData)
+        }
       }
     } catch (e) {
-      console.error('Error al obtener choferes:', e)
+      console.error('Error al cargar choferes:', e)
     }
   }
 
@@ -73,7 +77,7 @@ function DashboardAdmin() {
             <option value="">Todos los choferes (Vista global)</option>
             {choferes.map((ch) => (
               <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo || ch.email || `Usuario ID: ${ch.id.slice(0, 8)}`}
+                {ch.nombre_completo || ch.email || ch.id.slice(0, 8)}
               </option>
             ))}
           </select>
