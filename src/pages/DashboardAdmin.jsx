@@ -1,6 +1,7 @@
 // src/pages/DashboardAdmin.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabaseClient'
 import LogoFlotante from '../components/LogoFlotante'
 import Indicadores from '../components/Indicadores'
 import CargaPedidos from '../components/CargaPedidos'
@@ -10,6 +11,31 @@ import MetricasTiempos from '../components/MetricasTiempos'
 function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
+  
+  // ESTADOS PARA EL FILTRO DE CHOFER
+  const [choferes, setChoferes] = useState([])
+  const [choferSeleccionado, setChoferSeleccionado] = useState('')
+
+  useEffect(() => {
+    cargarChoferes()
+  }, [])
+
+  // Cargar lista de choferes desde la base de datos
+  async function cargarChoferes() {
+    try {
+      const { data, error } = await supabase
+        .from('perfiles')
+        .select('id, nombre_completo, email')
+        .eq('rol', 'chofer')
+        .order('nombre_completo', { ascending: true })
+
+      if (!error && data) {
+        setChoferes(data)
+      }
+    } catch (e) {
+      console.error('Error al cargar la lista de choferes:', e)
+    }
+  }
 
   return (
     <div style={estilos.pagina}>
@@ -29,8 +55,29 @@ function DashboardAdmin() {
       </header>
 
       <div style={estilos.contenido}>
-        <Indicadores key={refrescar} />
-        <MetricasTiempos key={'metricas-' + refrescar} />
+        {/* BARRA DE FILTRO POR CHOFER */}
+        <div style={estilos.contenedorFiltro}>
+          <label style={estilos.labelFiltro}>
+            <strong>👤 Filtrar métricas por chofer:</strong>
+          </label>
+          <select
+            value={choferSeleccionado}
+            onChange={(e) => setChoferSeleccionado(e.target.value)}
+            style={estilos.selectFiltro}
+          >
+            <option value="">Todos los choferes (Vista global)</option>
+            {choferes.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                {ch.nombre_completo || ch.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* COMPONENTES DE MÉTRICAS PASANDO LA PROP choferId */}
+        <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
+        <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
+        
         <CargaPedidos onExito={() => setRefrescar((valor) => valor + 1)} />
         <TablaPedidos key={'tabla-' + refrescar} />
       </div>
@@ -82,6 +129,31 @@ const estilos = {
     maxWidth: '1100px',
     margin: '0 auto',
     padding: '2rem 1.5rem',
+  },
+  contenedorFiltro: {
+    background: '#ffffff',
+    border: '1px solid #cbd5e1',
+    borderRadius: '10px',
+    padding: '1rem 1.2rem',
+    marginBottom: '1.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  },
+  labelFiltro: {
+    color: '#1e293b',
+    fontSize: '0.95rem',
+  },
+  selectFiltro: {
+    padding: '0.5rem 1rem',
+    borderRadius: '6px',
+    border: '1px solid #94a3b8',
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    color: '#0f172a',
+    outline: 'none',
+    cursor: 'pointer',
   },
 }
 

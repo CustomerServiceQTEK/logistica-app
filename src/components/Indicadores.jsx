@@ -1,11 +1,11 @@
 // src/components/Indicadores.jsx
-// Muestra tarjetas con el total de pedidos, pendientes y completadas
+// Muestra tarjetas con el total de pedidos, pendientes y completadas (filtradas por chofer si aplica)
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Skeleton from './Skeleton'
 
-function Indicadores() {
+function Indicadores({ choferId }) {
   const [total, setTotal] = useState(0)
   const [pendientes, setPendientes] = useState(0)
   const [completadas, setCompletadas] = useState(0)
@@ -13,24 +13,38 @@ function Indicadores() {
 
   useEffect(() => {
     cargarIndicadores()
-  }, [])
+  }, [choferId])
 
   async function cargarIndicadores() {
     setCargando(true)
 
-    const { count: totalCount } = await supabase
+    // Consulta base para Total
+    let queryTotal = supabase
       .from('pedidos')
       .select('*', { count: 'exact', head: true })
 
-    const { count: pendientesCount } = await supabase
+    // Consulta base para Pendientes
+    let queryPendientes = supabase
       .from('pedidos')
       .select('*', { count: 'exact', head: true })
       .eq('estatus', 'pendiente')
 
-    const { count: completadasCount } = await supabase
+    // Consulta base para Completadas
+    let queryCompletadas = supabase
       .from('pedidos')
       .select('*', { count: 'exact', head: true })
       .eq('estatus', 'completada')
+
+    // Si se seleccionó un chofer específico, aplicamos el filtro a las tres consultas
+    if (choferId) {
+      queryTotal = queryTotal.eq('chofer_id', choferId)
+      queryPendientes = queryPendientes.eq('chofer_id', choferId)
+      queryCompletadas = queryCompletadas.eq('chofer_id', choferId)
+    }
+
+    const { count: totalCount } = await queryTotal
+    const { count: pendientesCount } = await queryPendientes
+    const { count: completadasCount } = await queryCompletadas
 
     setTotal(totalCount ?? 0)
     setPendientes(pendientesCount ?? 0)

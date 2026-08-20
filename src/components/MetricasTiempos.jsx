@@ -1,6 +1,6 @@
 // src/components/MetricasTiempos.jsx
 // Calcula y muestra métricas basadas en fechas:
-// tiempo promedio de entrega, completadas esta semana, y pedidos atrasados
+// tiempo promedio de entrega, completadas esta semana, y pedidos atrasados (filtradas por chofer si aplica)
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
@@ -8,7 +8,7 @@ import Skeleton from './Skeleton'
 
 const DIAS_PARA_ATRASO = 5
 
-function MetricasTiempos() {
+function MetricasTiempos({ choferId }) {
   const [tiempoPromedio, setTiempoPromedio] = useState(null)
   const [completadasSemana, setCompletadasSemana] = useState(0)
   const [atrasados, setAtrasados] = useState([])
@@ -16,15 +16,22 @@ function MetricasTiempos() {
 
   useEffect(function () {
     calcularMetricas()
-  }, [])
+  }, [choferId])
 
   async function calcularMetricas() {
     setCargando(true)
 
-    // Traemos todos los pedidos
-    const resultadoPedidos = await supabase
+    // Consulta base para pedidos
+    let queryPedidos = supabase
       .from('pedidos')
-      .select('id, numero_factura, cliente, estatus, creado_en')
+      .select('id, numero_factura, cliente, estatus, creado_en, chofer_id')
+
+    // Si se especificó un chofer, filtramos por chofer_id
+    if (choferId) {
+      queryPedidos = queryPedidos.eq('chofer_id', choferId)
+    }
+
+    const resultadoPedidos = await queryPedidos
 
     // Traemos todas las evidencias (para saber cuándo se completó cada pedido)
     const resultadoEvidencias = await supabase
@@ -44,8 +51,6 @@ function MetricasTiempos() {
     })
 
     // 1. TIEMPO PROMEDIO DE ENTREGA
-    // Para cada pedido completado, calculamos cuántas horas pasaron
-    // entre que se cargó (creado_en) y se subió la evidencia (subido_en)
     const tiempos = []
     pedidos.forEach(function (pedido) {
       const fechaEvidencia = mapaFechaEvidencia[pedido.id]
@@ -66,9 +71,15 @@ function MetricasTiempos() {
     const hace7Dias = new Date()
     hace7Dias.setDate(hace7Dias.getDate() - 7)
 
+    // Obtenemos los IDs de los pedidos ya filtrados
+    const idsPedidosFiltrados = new Set(pedidos.map(function (p) { return p.id }))
+
     const contadorSemana = evidencias.filter(function (ev) {
-      return new Date(ev.subido_en) >= hace7Dias
+      const esDelChofer = idsPedidosFiltrados.has(ev.pedido_id)
+      const esDeEstaSemana = new Date(ev.subido_en) >= hace7Dias
+      return esDelChofer && esDeEstaSemana
     }).length
+
     setCompletadasSemana(contadorSemana)
 
     // 3. PEDIDOS ATRASADOS (pendientes desde hace más de DIAS_PARA_ATRASO)
@@ -137,7 +148,7 @@ function MetricasTiempos() {
         </div>
       </div>
 
-      {/* Lista detallada de los pedidos atrasados, solo si hay alguno */}
+      {/* Lista detallada de los pedidos atrasados */}
       {atrasados.length > 0 && (
         <div style={estilos.listaAtrasados}>
           <p style={estilos.tituloLista}>🚨 Pedidos que requieren atención:</p>
