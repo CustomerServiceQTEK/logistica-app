@@ -119,7 +119,7 @@ function TablaPedidos() {
     mapaChoferes[ch.id] = ch.nombre_completo || ch.id
   })
 
-  // Función para dar formato legible a la fecha y hora de la evidencia
+  // Función para dar formato legible a la fecha y hora
   function formatearFechaHora(fechaIso) {
     if (!fechaIso) return ''
     const f = new Date(fechaIso)
@@ -247,9 +247,7 @@ function TablaPedidos() {
         Dirección: pedido.direccion || '—',
         Estatus: pedido.estatus === 'completada' ? 'Completada' : 'Pendiente',
         'Chofer Asignado': mapaChoferes[pedido.chofer_id] || 'Sin asignar',
-        'Fecha Carga': pedido.creado_en
-          ? new Date(pedido.creado_en).toLocaleDateString()
-          : '—',
+        'Fecha Carga': pedido.creado_en ? formatearFechaHora(pedido.creado_en) : '—',
         'Evidencias y Fecha Subida': urlsEvidencias || 'Sin evidencias',
       }
     })
@@ -264,7 +262,7 @@ function TablaPedidos() {
       { wch: 35 },
       { wch: 12 },
       { wch: 22 },
-      { wch: 15 },
+      { wch: 20 },
       { wch: 50 },
     ]
 
@@ -445,9 +443,9 @@ function TablaPedidos() {
               <th
                 onClick={() => manejarOrden('creado_en')}
                 style={estilos.celdaEncabezadoInteractiva}
-                title="Haz clic para ordenar por Fecha de Carga"
+                title="Haz clic para ordenar por Fecha y Hora de Carga"
               >
-                Fecha de Carga{obtenerIconoOrden('creado_en')}
+                Fecha y Hora de Carga{obtenerIconoOrden('creado_en')}
               </th>
               <th style={estilos.celdaEncabezado}>Evidencias y Hora Subida</th>
               <th style={{ ...estilos.celdaEncabezado, textAlign: 'center' }}>Eliminar</th>
@@ -509,7 +507,7 @@ function TablaPedidos() {
                   </td>
                   <td style={estilos.celda}>
                     {pedido.creado_en
-                      ? new Date(pedido.creado_en).toLocaleDateString()
+                      ? formatearFechaHora(pedido.creado_en)
                       : '—'}
                   </td>
                   <td style={estilos.celda}>
