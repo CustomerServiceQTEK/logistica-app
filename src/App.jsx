@@ -21,20 +21,33 @@ function RutaPrincipal() {
     return <p style={{ padding: '2rem', fontFamily: 'sans-serif' }}>Cargando...</p>
   }
 
-  // Si no hay usuario logueado, mostramos Login o Registro según corresponda
+  // Si no hay usuario logueado, mostramos Login o Registro
   if (!usuario) {
     if (pantalla === 'registro') {
-      return <Registro irALogin={() => setPantalla('login')} />
+      return (
+        <div style={{ position: 'relative', minHeight: '100vh' }}>
+          <Registro irALogin={() => setPantalla('login')} />
+          <PiePagina />
+        </div>
+      )
     }
-    return <Login irARegistro={() => setPantalla('registro')} />
+    return (
+      <div style={{ position: 'relative', height: '100vh', overflow: 'hidden' }}>
+        <Login irARegistro={() => setPantalla('registro')} />
+        <div style={{ position: 'absolute', bottom: 0, width: '100%', zIndex: 10 }}>
+          <PiePagina />
+        </div>
+      </div>
+    )
   }
 
-  // Si está logueado, lo mandamos según su rol
-  if (perfil?.rol === 'administrador') {
-    return <DashboardAdmin />
-  }
-
-  return <DashboardChofer />
+  // Si está logueado, lo mandamos según su rol con el pie de página normal
+  return (
+    <div>
+      {perfil?.rol === 'administrador' ? <DashboardAdmin /> : <DashboardChofer />}
+      <PiePagina />
+    </div>
+  )
 }
 
 function App() {
@@ -44,7 +57,6 @@ function App() {
         <Routes>
           <Route path="*" element={<RutaPrincipal />} />
         </Routes>
-        <PiePagina />
       </BrowserRouter>
     </AuthProvider>
   )
