@@ -136,13 +136,12 @@ function TablaPedidos() {
     return `${fecha} - ${hora}`
   }
 
-  // Función para asegurar que las URLs de archivos sean públicas y completas
+  // Función para asegurar que las URLs de archivos sean públicas y limpias
   function obtenerUrlCompletaEvidencia(urlOriginal) {
     if (!urlOriginal) return ''
     if (urlOriginal.startsWith('http://') || urlOriginal.startsWith('https://')) {
       return urlOriginal
     }
-    // Si la URL se guardó como ruta relativa dentro del bucket 'evidencias'
     const { data } = supabase.storage.from('evidencias').getPublicUrl(urlOriginal)
     return data?.publicUrl || urlOriginal
   }
@@ -245,12 +244,14 @@ function TablaPedidos() {
 
     const datosExcel = pedidosOrdenados.map(function (pedido) {
       const listaEvs = evidencias[pedido.id] || []
+      
+      // Separar limpiamente las URLs de la fecha de subida
       const urlsEvidencias = listaEvs
-        .map(function (e) {
-          const urlValida = obtenerUrlCompletaEvidencia(e.archivo_url)
-          const fechaEv = e.subido_en ? ` (${formatearFechaHora(e.subido_en)})` : ''
-          return `${urlValida}${fechaEv}`
-        })
+        .map((e) => obtenerUrlCompletaEvidencia(e.archivo_url))
+        .join(' | ')
+
+      const fechasSubida = listaEvs
+        .map((e) => (e.subido_en ? formatearFechaHora(e.subido_en) : 'Sin fecha'))
         .join(' | ')
 
       return {
@@ -259,8 +260,9 @@ function TablaPedidos() {
         Dirección: pedido.direccion || '—',
         Estatus: pedido.estatus === 'completada' ? 'Completada' : 'Pendiente',
         'Chofer Asignado': mapaChoferes[pedido.chofer_id] || 'Sin asignar',
-        'Fecha Carga': pedido.creado_en ? formatearFechaHora(pedido.creado_en) : '—',
-        'Evidencias y Fecha Subida': urlsEvidencias || 'Sin evidencias',
+        'Fecha y Hora Carga': pedido.creado_en ? formatearFechaHora(pedido.creado_en) : '—',
+        'Fecha y Hora Subida Evidencia': fechasSubida || 'Sin evidencias',
+        'Enlace a Evidencias': urlsEvidencias || 'Sin evidencias',
       }
     })
 
@@ -274,7 +276,8 @@ function TablaPedidos() {
       { wch: 35 },
       { wch: 12 },
       { wch: 22 },
-      { wch: 20 },
+      { wch: 22 },
+      { wch: 25 },
       { wch: 50 },
     ]
 
@@ -617,7 +620,7 @@ const estilos = {
   },
   encabezado: {
     display: 'flex',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
     flexWrap: 'wrap',
