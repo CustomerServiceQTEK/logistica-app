@@ -69,14 +69,17 @@ const urlImagen = 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?
 const estilos = {
   contenedor: {
     display: 'flex',
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
-    height: '100vh',
+    minHeight: '100vh',
+    width: '100%',
+    boxSizing: 'border-box',
     fontFamily: 'sans-serif',
     backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.78)), url("${urlImagen}")`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
+    padding: '1.5rem',
   },
   formulario: {
     background: '#fff',
@@ -86,7 +89,9 @@ const estilos = {
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem',
-    width: '320px',
+    width: '100%',
+    maxWidth: '360px',
+    boxSizing: 'border-box',
   },
   logo: {
     fontSize: '2.5rem',
@@ -107,6 +112,8 @@ const estilos = {
     fontSize: '1rem',
     borderRadius: '8px',
     border: '1px solid #cbd5e1',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   boton: {
     padding: '0.7rem',
