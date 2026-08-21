@@ -1,4 +1,5 @@
 // src/pages/DashboardChofer.jsx
+import MetricasChofer from '../components/MetricasChofer'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -222,6 +223,10 @@ function DashboardChofer() {
 
       {/* CONTENIDO PRINCIPAL */}
       <main style={estilos.contenido}>
+        
+        {/* === PEGA ESTA LÍNEA AQUÍ === */}
+        <MetricasChofer pedidos={pedidos} evidencias={evidencias} />
+
         {mensaje && <div style={estilos.alerta}>{mensaje}</div>}
 
         {/* PESTAÑAS / TABS DE FILTRO */}
