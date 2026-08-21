@@ -16,6 +16,7 @@ function TablaPedidos() {
   // Filtros
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstatus, setFiltroEstatus] = useState('todos') // todos | pendiente | completada
+  const [filtroChofer, setFiltroChofer] = useState('todos') // todos | sin_asignar | id_del_chofer
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
 
@@ -129,7 +130,15 @@ function TablaPedidos() {
     const coincideEstatus =
       filtroEstatus === 'todos' || pedido.estatus === filtroEstatus
 
-    // 3. Filtro de Fechas
+    // 3. Filtro de Chofer
+    let coincideChofer = true
+    if (filtroChofer === 'sin_asignar') {
+      coincideChofer = !pedido.chofer_id
+    } else if (filtroChofer !== 'todos') {
+      coincideChofer = pedido.chofer_id === filtroChofer
+    }
+
+    // 4. Filtro de Fechas
     let coincideFecha = true
     if (pedido.creado_en) {
       const fechaPedido = pedido.creado_en.split('T')[0] // Formato YYYY-MM-DD
@@ -141,7 +150,7 @@ function TablaPedidos() {
       }
     }
 
-    return coincideTexto && coincideEstatus && coincideFecha
+    return coincideTexto && coincideEstatus && coincideChofer && coincideFecha
   })
 
   // --- LÓGICA DE PAGINACIÓN ---
@@ -211,6 +220,7 @@ function TablaPedidos() {
   function limpiarFiltros() {
     setBusqueda('')
     setFiltroEstatus('todos')
+    setFiltroChofer('todos')
     setFechaDesde('')
     setFechaHasta('')
     setPaginaActual(1)
@@ -275,6 +285,29 @@ function TablaPedidos() {
           </select>
         </div>
 
+        {/* NUEVO: Filtro por Chofer */}
+        <div style={estilos.grupoFiltro}>
+          <label style={estilos.labelFiltro}>Chofer:</label>
+          <select
+            value={filtroChofer}
+            onChange={function (e) {
+              setFiltroChofer(e.target.value)
+              setPaginaActual(1)
+            }}
+            style={estilos.selectFiltro}
+          >
+            <option value="todos">Todos los choferes</option>
+            <option value="sin_asignar">⚠️ Sin asignar</option>
+            {choferes.map(function (ch) {
+              return (
+                <option key={ch.id} value={ch.id}>
+                  👤 {ch.nombre_completo || ch.id.slice(0, 8)}
+                </option>
+              )
+            })}
+          </select>
+        </div>
+
         {/* Filtro Fecha Desde */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Desde:</label>
@@ -304,7 +337,7 @@ function TablaPedidos() {
         </div>
 
         {/* Botón Limpiar */}
-        {(busqueda || filtroEstatus !== 'todos' || fechaDesde || fechaHasta) && (
+        {(busqueda || filtroEstatus !== 'todos' || filtroChofer !== 'todos' || fechaDesde || fechaHasta) && (
           <button onClick={limpiarFiltros} style={estilos.botonLimpiarFiltros}>
             ✖ Limpiar filtros
           </button>
@@ -472,7 +505,7 @@ const estilos = {
   },
   encabezado: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
     flexWrap: 'wrap',
@@ -634,7 +667,7 @@ const estilos = {
   },
   paginacion: {
     display: 'flex',
-    justifyContent: 'center',
+    justify: 'center',
     alignItems: 'center',
     gap: '1rem',
     marginTop: '1.2rem',
