@@ -67,11 +67,6 @@ function Login({ irARegistro }) {
           </span>
         </p>
       </form>
-
-      {/* FIRMA DE AUTOR EN POSICIÓN FIJA INFERIOR */}
-      <footer style={estilos.firma}>
-        Powered by Victor Covarrubias
-      </footer>
     </div>
   )
 }
@@ -93,21 +88,19 @@ const estilos = {
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
     padding: '1rem',
-    position: 'relative',
-    overflow: 'hidden', // Evita que aparezca cualquier barra de scroll
+    overflow: 'hidden', // Mantiene deshabilitada la barra de scroll
   },
   formulario: {
     background: '#fff',
-    padding: '1.8rem 2rem', // Ligera reducción del padding interno para ganar espacio vertical
+    padding: '1.8rem 2rem',
     borderRadius: '16px',
     boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.85rem', // Un poco más compacto
+    gap: '0.85rem',
     width: '100%',
     maxWidth: '350px',
     boxSizing: 'border-box',
-    zIndex: 1,
   },
   logo: {
     textAlign: 'center',
@@ -157,17 +150,6 @@ const estilos = {
     color: '#2563eb',
     cursor: 'pointer',
     fontWeight: 'bold',
-  },
-  firma: {
-    position: 'absolute',
-    bottom: '12px',
-    left: '0',
-    right: '0',
-    textAlign: 'center',
-    fontSize: '0.75rem',
-    color: 'rgba(255, 255, 255, 0.6)',
-    pointerEvents: 'none',
-    letterSpacing: '0.03em',
   },
 }
 
