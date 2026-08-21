@@ -99,15 +99,16 @@ function DashboardAdmin() {
   )
 }
 
+// ESTILOS CON ANCHO AMPLIADO (MAX 1600px)
 const estilos = {
-  pagina: { minHeight: '100vh' },
+  pagina: { minHeight: '100vh', background: '#f8fafc' },
   header: { background: '#1e293b', borderBottom: '1px solid #334155' },
-  headerContenido: { maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem' },
+  headerContenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', boxSizing: 'border-box' },
   headerIzquierda: { display: 'flex', alignItems: 'center', gap: '12px' },
   titulo: { margin: 0, color: '#fff', fontSize: '1.3rem' },
   textoRol: { color: '#cbd5e1', fontSize: '0.9rem', textTransform: 'capitalize' },
   botonSalir: { padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
-  contenido: { maxWidth: '1100px', margin: '0 auto', padding: '2rem 1.5rem' },
+  contenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' },
   contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   labelFiltro: { color: '#1e293b', fontSize: '0.95rem' },
   selectFiltro: { padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #94a3b8', fontSize: '0.9rem', fontWeight: 'bold', color: '#0f172a', outline: 'none', cursor: 'pointer' },

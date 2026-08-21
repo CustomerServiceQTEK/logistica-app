@@ -363,7 +363,7 @@ function TablaPedidos() {
       </div>
 
       {/* TABLA DE PEDIDOS */}
-      <div style={{ overflowX: 'auto' }}>
+      <div style={estilos.contenedorTabla}>
         <table style={estilos.tabla}>
           <thead>
             <tr>
@@ -375,7 +375,7 @@ function TablaPedidos() {
               <th style={estilos.celdaEncabezado}>WhatsApp</th>
               <th style={estilos.celdaEncabezado}>Fecha de carga</th>
               <th style={estilos.celdaEncabezado}>Evidencias y Hora Subida</th>
-              <th style={estilos.celdaEncabezado}>Eliminar</th>
+              <th style={{ ...estilos.celdaEncabezado, textAlign: 'center' }}>Eliminar</th>
             </tr>
           </thead>
           <tbody>
@@ -464,7 +464,7 @@ function TablaPedidos() {
                       <span style={{ color: '#cbd5e1' }}>—</span>
                     )}
                   </td>
-                  <td style={estilos.celda}>
+                  <td style={{ ...estilos.celda, textAlign: 'center' }}>
                     <EliminarPedido
                       pedido={pedido}
                       onEliminado={actualizarTodo}
@@ -526,6 +526,8 @@ const estilos = {
     borderRadius: '12px',
     padding: '1.5rem',
     boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   encabezado: {
     display: 'flex',
@@ -620,68 +622,73 @@ const estilos = {
     fontSize: '0.8rem',
     fontWeight: 'bold',
   },
+  contenedorTabla: {
+    overflowX: 'auto',
+    width: '100%',
+  },
   tabla: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '700px',
+    minWidth: '950px', // Garantiza que las columnas no se encanten
   },
   celdaEncabezado: {
     textAlign: 'left',
-    padding: '0.7rem',
+    padding: '0.6rem 0.5rem',
     borderBottom: '2px solid #e5e7eb',
     background: '#f8fafc',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     color: '#64748b',
     textTransform: 'uppercase',
     letterSpacing: '0.03em',
+    whiteSpace: 'nowrap',
   },
   fila: {
     transition: 'background 0.1s ease',
   },
   celda: {
-    padding: '0.8rem 0.7rem',
+    padding: '0.7rem 0.5rem',
     borderBottom: '1px solid #f1f5f9',
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
   },
   badgePendiente: {
     background: '#fffbeb',
     color: '#92400e',
-    padding: '0.3rem 0.7rem',
+    padding: '0.25rem 0.5rem',
     borderRadius: '20px',
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     fontWeight: '600',
     whiteSpace: 'nowrap',
   },
   badgeCompletada: {
     background: '#f0fdf4',
     color: '#166534',
-    padding: '0.3rem 0.7rem',
+    padding: '0.25rem 0.5rem',
     borderRadius: '20px',
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     fontWeight: '600',
     whiteSpace: 'nowrap',
   },
   select: {
-    padding: '0.4rem 0.5rem',
+    padding: '0.35rem 0.4rem',
     borderRadius: '6px',
     border: '1px solid #cbd5e1',
-    fontSize: '0.85rem',
+    fontSize: '0.82rem',
   },
   botonWhatsApp: {
     display: 'inline-block',
-    padding: '0.35rem 0.7rem',
+    padding: '0.3rem 0.6rem',
     background: '#25D366',
     color: '#fff',
     borderRadius: '6px',
     textDecoration: 'none',
     fontWeight: 'bold',
-    fontSize: '0.8rem',
+    fontSize: '0.78rem',
     whiteSpace: 'nowrap',
   },
   contenedorEvidencias: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.4rem',
+    gap: '0.3rem',
   },
   bloqueEvidencia: {
     display: 'flex',
@@ -695,7 +702,7 @@ const estilos = {
     fontSize: '0.8rem',
   },
   textoHoraSubida: {
-    fontSize: '0.72rem',
+    fontSize: '0.7rem',
     color: '#64748b',
     fontWeight: '500',
   },
