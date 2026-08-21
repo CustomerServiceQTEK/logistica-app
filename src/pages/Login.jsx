@@ -60,13 +60,18 @@ function Login({ irARegistro }) {
           {cargando ? 'Ingresando...' : 'Ingresar'}
         </button>
 
-        <p style={{ textAlign: 'center', fontSize: '0.9rem', margin: 0, color: '#64748b' }}>
+        <p style={{ textAlign: 'center', fontSize: '0.85rem', margin: 0, color: '#64748b' }}>
           ¿Eres chofer y no tienes cuenta?{' '}
           <span onClick={irARegistro} style={estilos.enlace}>
             Regístrate aquí
           </span>
         </p>
       </form>
+
+      {/* FIRMA DE AUTOR EN POSICIÓN FIJA INFERIOR */}
+      <footer style={estilos.firma}>
+        Powered by Victor Covarrubias
+      </footer>
     </div>
   )
 }
@@ -78,7 +83,8 @@ const estilos = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100vh',
+    height: '100vh',
+    maxHeight: '100dvh',
     width: '100%',
     boxSizing: 'border-box',
     fontFamily: 'sans-serif',
@@ -86,50 +92,54 @@ const estilos = {
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
-    padding: '1.5rem',
+    padding: '1rem',
+    position: 'relative',
+    overflow: 'hidden', // Evita que aparezca cualquier barra de scroll
   },
   formulario: {
     background: '#fff',
-    padding: '2.5rem',
+    padding: '1.8rem 2rem', // Ligera reducción del padding interno para ganar espacio vertical
     borderRadius: '16px',
     boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem',
+    gap: '0.85rem', // Un poco más compacto
     width: '100%',
-    maxWidth: '360px',
+    maxWidth: '350px',
     boxSizing: 'border-box',
+    zIndex: 1,
   },
   logo: {
     textAlign: 'center',
   },
   imagenLogo: {
-    maxWidth: '160px',
+    maxWidth: '140px',
     height: 'auto',
-    maxHeight: '60px',
+    maxHeight: '50px',
     objectFit: 'contain',
   },
   titulo: {
     margin: 0,
     textAlign: 'center',
+    fontSize: '1.35rem',
   },
   subtitulo: {
-    margin: '-0.5rem 0 0.5rem 0',
+    margin: '-0.4rem 0 0.3rem 0',
     textAlign: 'center',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
     color: '#64748b',
   },
   input: {
-    padding: '0.7rem',
-    fontSize: '1rem',
+    padding: '0.65rem 0.75rem',
+    fontSize: '0.95rem',
     borderRadius: '8px',
     border: '1px solid #cbd5e1',
     width: '100%',
     boxSizing: 'border-box',
   },
   boton: {
-    padding: '0.7rem',
-    fontSize: '1rem',
+    padding: '0.65rem',
+    fontSize: '0.95rem',
     background: '#2563eb',
     color: '#fff',
     border: 'none',
@@ -139,7 +149,7 @@ const estilos = {
   },
   error: {
     color: '#dc2626',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
     margin: 0,
     textAlign: 'center',
   },
@@ -147,6 +157,17 @@ const estilos = {
     color: '#2563eb',
     cursor: 'pointer',
     fontWeight: 'bold',
+  },
+  firma: {
+    position: 'absolute',
+    bottom: '12px',
+    left: '0',
+    right: '0',
+    textAlign: 'center',
+    fontSize: '0.75rem',
+    color: 'rgba(255, 255, 255, 0.6)',
+    pointerEvents: 'none',
+    letterSpacing: '0.03em',
   },
 }
 
