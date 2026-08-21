@@ -136,6 +136,17 @@ function TablaPedidos() {
     return `${fecha} - ${hora}`
   }
 
+  // Función para asegurar que las URLs de archivos sean públicas y completas
+  function obtenerUrlCompletaEvidencia(urlOriginal) {
+    if (!urlOriginal) return ''
+    if (urlOriginal.startsWith('http://') || urlOriginal.startsWith('https://')) {
+      return urlOriginal
+    }
+    // Si la URL se guardó como ruta relativa dentro del bucket 'evidencias'
+    const { data } = supabase.storage.from('evidencias').getPublicUrl(urlOriginal)
+    return data?.publicUrl || urlOriginal
+  }
+
   // Función para manejar el clic de ordenamiento en los encabezados
   function manejarOrden(campo) {
     if (campoOrden === campo) {
@@ -236,8 +247,9 @@ function TablaPedidos() {
       const listaEvs = evidencias[pedido.id] || []
       const urlsEvidencias = listaEvs
         .map(function (e) {
+          const urlValida = obtenerUrlCompletaEvidencia(e.archivo_url)
           const fechaEv = e.subido_en ? ` (${formatearFechaHora(e.subido_en)})` : ''
-          return `${e.archivo_url}${fechaEv}`
+          return `${urlValida}${fechaEv}`
         })
         .join(' | ')
 
@@ -514,10 +526,11 @@ function TablaPedidos() {
                     {listaEvidencias.length > 0 ? (
                       <div style={estilos.contenedorEvidencias}>
                         {listaEvidencias.map(function (ev, index) {
+                          const urlCompleta = obtenerUrlCompletaEvidencia(ev.archivo_url)
                           return (
                             <div key={index} style={estilos.bloqueEvidencia}>
                               <a
-                                href={ev.archivo_url}
+                                href={urlCompleta}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={estilos.linkEvidencia}
