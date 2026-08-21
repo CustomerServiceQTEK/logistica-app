@@ -19,7 +19,7 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
     try {
       await emailjs.send(
         'service_94plomw',
-        'template_jd9gfhq',
+        'template_tbh0dqq',
         {
           vendedor_email: pedido.vendedor_email,
           numero_factura: pedido.numero_factura || 'N/A',
