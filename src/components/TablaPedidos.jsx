@@ -20,8 +20,8 @@ function TablaPedidos() {
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
 
-  // NUEVO: Ordenamiento dinámico por columna
-  const [campoOrden, setCampoOrden] = useState('creado_en') // creado_en | numero_factura | cliente | estatus
+  // Ordenamiento dinámico por columna
+  const [campoOrden, setCampoOrden] = useState('creado_en') // creado_en | numero_factura | cliente | direccion | estatus | chofer
   const [direccionOrden, setDireccionOrden] = useState('desc') // asc | desc
 
   useEffect(() => {
@@ -113,6 +113,12 @@ function TablaPedidos() {
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
   }
 
+  // Mapa rápido de ID de chofer -> Nombre Completo
+  const mapaChoferes = {}
+  choferes.forEach(function (ch) {
+    mapaChoferes[ch.id] = ch.nombre_completo || ch.id
+  })
+
   // Función para dar formato legible a la fecha y hora de la evidencia
   function formatearFechaHora(fechaIso) {
     if (!fechaIso) return ''
@@ -186,13 +192,18 @@ function TablaPedidos() {
 
   // ORDENAR LOS RESULTADOS FILTRADOS
   const pedidosOrdenados = [...pedidosFiltrados].sort((a, b) => {
-    let valorA = a[campoOrden] || ''
-    let valorB = b[campoOrden] || ''
+    let valorA = ''
+    let valorB = ''
 
-    // Convertir números de factura a texto o número
-    if (campoOrden === 'numero_factura') {
-      valorA = parseInt(valorA, 10) || valorA
-      valorB = parseInt(valorB, 10) || valorB
+    if (campoOrden === 'chofer') {
+      valorA = (mapaChoferes[a.chofer_id] || 'ZZZ_Sin_Asignar').toLowerCase()
+      valorB = (mapaChoferes[b.chofer_id] || 'ZZZ_Sin_Asignar').toLowerCase()
+    } else if (campoOrden === 'numero_factura') {
+      valorA = parseInt(a.numero_factura, 10) || 0
+      valorB = parseInt(b.numero_factura, 10) || 0
+    } else {
+      valorA = (a[campoOrden] || '').toString().toLowerCase()
+      valorB = (b[campoOrden] || '').toString().toLowerCase()
     }
 
     if (valorA < valorB) return direccionOrden === 'asc' ? -1 : 1
@@ -220,11 +231,6 @@ function TablaPedidos() {
       alert('No hay pedidos para exportar con los filtros actuales.')
       return
     }
-
-    const mapaChoferes = {}
-    choferes.forEach(function (ch) {
-      mapaChoferes[ch.id] = ch.nombre_completo || ch.id
-    })
 
     const datosExcel = pedidosOrdenados.map(function (pedido) {
       const listaEvs = evidencias[pedido.id] || []
@@ -414,7 +420,13 @@ function TablaPedidos() {
               >
                 Cliente{obtenerIconoOrden('cliente')}
               </th>
-              <th style={estilos.celdaEncabezado}>Dirección</th>
+              <th
+                onClick={() => manejarOrden('direccion')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Dirección"
+              >
+                Dirección{obtenerIconoOrden('direccion')}
+              </th>
               <th
                 onClick={() => manejarOrden('estatus')}
                 style={estilos.celdaEncabezadoInteractiva}
@@ -422,7 +434,13 @@ function TablaPedidos() {
               >
                 Estatus{obtenerIconoOrden('estatus')}
               </th>
-              <th style={estilos.celdaEncabezado}>Chofer asignado</th>
+              <th
+                onClick={() => manejarOrden('chofer')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Chofer Asignado"
+              >
+                Chofer asignado{obtenerIconoOrden('chofer')}
+              </th>
               <th style={estilos.celdaEncabezado}>WhatsApp</th>
               <th
                 onClick={() => manejarOrden('creado_en')}
@@ -747,7 +765,7 @@ const estilos = {
   },
   botonWhatsApp: {
     display: 'inline-block',
-    padding: '0.35rem 0.6rem',
+    padding: '0.3rem 0.6rem',
     background: '#25D366',
     color: '#fff',
     borderRadius: '6px',
