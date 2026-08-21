@@ -1,6 +1,7 @@
 // src/pages/Login.jsx
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import qtekLogo from '../assets/qtek-logo.png'
 
 function Login({ irARegistro }) {
   const [email, setEmail] = useState('')
@@ -25,7 +26,13 @@ function Login({ irARegistro }) {
   return (
     <div style={estilos.contenedor}>
       <form onSubmit={manejarLogin} style={estilos.formulario}>
-        <div style={estilos.logo}>📦</div>
+        <div style={estilos.logo}>
+          <img 
+            src={qtekLogo} 
+            alt="Logo QTEK" 
+            style={estilos.imagenLogo} 
+          />
+        </div>
         <h2 style={estilos.titulo}>Iniciar Sesión</h2>
         <p style={estilos.subtitulo}>Sistema de gestión de entregas</p>
 
@@ -94,8 +101,13 @@ const estilos = {
     boxSizing: 'border-box',
   },
   logo: {
-    fontSize: '2.5rem',
     textAlign: 'center',
+  },
+  imagenLogo: {
+    maxWidth: '160px',
+    height: 'auto',
+    maxHeight: '60px',
+    objectFit: 'contain',
   },
   titulo: {
     margin: 0,
