@@ -60,7 +60,7 @@ function Login({ irARegistro }) {
           {cargando ? 'Ingresando...' : 'Ingresar'}
         </button>
 
-        <p style={{ textAlign: 'center', fontSize: '0.85rem', margin: 0, color: '#64748b' }}>
+        <p style={{ textAlign: 'center', fontSize: '0.9rem', margin: 0, color: '#64748b' }}>
           ¿Eres chofer y no tienes cuenta?{' '}
           <span onClick={irARegistro} style={estilos.enlace}>
             Regístrate aquí
@@ -78,8 +78,7 @@ const estilos = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    height: '100vh',
-    maxHeight: '100dvh',
+    minHeight: '100vh',
     width: '100%',
     boxSizing: 'border-box',
     fontFamily: 'sans-serif',
@@ -87,52 +86,50 @@ const estilos = {
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',
-    padding: '1rem',
-    overflow: 'hidden', // Mantiene deshabilitada la barra de scroll
+    padding: '1.5rem',
   },
   formulario: {
     background: '#fff',
-    padding: '1.8rem 2rem',
+    padding: '2.5rem',
     borderRadius: '16px',
     boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.85rem',
+    gap: '1rem',
     width: '100%',
-    maxWidth: '350px',
+    maxWidth: '360px',
     boxSizing: 'border-box',
   },
   logo: {
     textAlign: 'center',
   },
   imagenLogo: {
-    maxWidth: '140px',
+    maxWidth: '160px',
     height: 'auto',
-    maxHeight: '50px',
+    maxHeight: '60px',
     objectFit: 'contain',
   },
   titulo: {
     margin: 0,
     textAlign: 'center',
-    fontSize: '1.35rem',
   },
   subtitulo: {
-    margin: '-0.4rem 0 0.3rem 0',
+    margin: '-0.5rem 0 0.5rem 0',
     textAlign: 'center',
-    fontSize: '0.8rem',
+    fontSize: '0.85rem',
     color: '#64748b',
   },
   input: {
-    padding: '0.65rem 0.75rem',
-    fontSize: '0.95rem',
+    padding: '0.7rem',
+    fontSize: '1rem',
     borderRadius: '8px',
     border: '1px solid #cbd5e1',
     width: '100%',
     boxSizing: 'border-box',
   },
   boton: {
-    padding: '0.65rem',
-    fontSize: '0.95rem',
+    padding: '0.7rem',
+    fontSize: '1rem',
     background: '#2563eb',
     color: '#fff',
     border: 'none',
@@ -142,7 +139,7 @@ const estilos = {
   },
   error: {
     color: '#dc2626',
-    fontSize: '0.8rem',
+    fontSize: '0.85rem',
     margin: 0,
     textAlign: 'center',
   },
