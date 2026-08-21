@@ -20,6 +20,10 @@ function TablaPedidos() {
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
 
+  // NUEVO: Ordenamiento dinámico por columna
+  const [campoOrden, setCampoOrden] = useState('creado_en') // creado_en | numero_factura | cliente | estatus
+  const [direccionOrden, setDireccionOrden] = useState('desc') // asc | desc
+
   useEffect(() => {
     cargarPedidos()
     cargarChoferes()
@@ -126,7 +130,17 @@ function TablaPedidos() {
     return `${fecha} - ${hora}`
   }
 
-  // --- LÓGICA DE FILTRADO ---
+  // Función para manejar el clic de ordenamiento en los encabezados
+  function manejarOrden(campo) {
+    if (campoOrden === campo) {
+      setDireccionOrden(direccionOrden === 'asc' ? 'desc' : 'asc')
+    } else {
+      setCampoOrden(campo)
+      setDireccionOrden('asc')
+    }
+  }
+
+  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO ---
   const listaPedidos = Array.isArray(pedidos) ? pedidos : []
   const terminoBuscado = (busqueda || '').toLowerCase().trim()
 
@@ -170,29 +184,49 @@ function TablaPedidos() {
     return coincideTexto && coincideEstatus && coincideChofer && coincideFecha
   })
 
+  // ORDENAR LOS RESULTADOS FILTRADOS
+  const pedidosOrdenados = [...pedidosFiltrados].sort((a, b) => {
+    let valorA = a[campoOrden] || ''
+    let valorB = b[campoOrden] || ''
+
+    // Convertir números de factura a texto o número
+    if (campoOrden === 'numero_factura') {
+      valorA = parseInt(valorA, 10) || valorA
+      valorB = parseInt(valorB, 10) || valorB
+    }
+
+    if (valorA < valorB) return direccionOrden === 'asc' ? -1 : 1
+    if (valorA > valorB) return direccionOrden === 'asc' ? 1 : -1
+    return 0
+  })
+
   // --- LÓGICA DE PAGINACIÓN ---
-  const totalPaginas = Math.ceil(pedidosFiltrados.length / PEDIDOS_POR_PAGINA) || 1
+  const totalPaginas = Math.ceil(pedidosOrdenados.length / PEDIDOS_POR_PAGINA) || 1
   const indiceInicial = (paginaActual - 1) * PEDIDOS_POR_PAGINA
-  const pedidosDeLaPagina = pedidosFiltrados.slice(
+  const pedidosDeLaPagina = pedidosOrdenados.slice(
     indiceInicial,
     indiceInicial + PEDIDOS_POR_PAGINA
   )
 
+  // Indicador de flecha para el encabezado
+  function obtenerIconoOrden(campo) {
+    if (campoOrden !== campo) return ' ↕'
+    return direccionOrden === 'asc' ? ' ▲' : ' ▼'
+  }
+
   // --- EXPORTAR A EXCEL ---
   function exportarAExcel() {
-    if (pedidosFiltrados.length === 0) {
+    if (pedidosOrdenados.length === 0) {
       alert('No hay pedidos para exportar con los filtros actuales.')
       return
     }
 
-    // Mapa para buscar nombre del chofer rápido
     const mapaChoferes = {}
     choferes.forEach(function (ch) {
       mapaChoferes[ch.id] = ch.nombre_completo || ch.id
     })
 
-    // Mapear los datos filtrados para darles formato limpio en Excel
-    const datosExcel = pedidosFiltrados.map(function (pedido) {
+    const datosExcel = pedidosOrdenados.map(function (pedido) {
       const listaEvs = evidencias[pedido.id] || []
       const urlsEvidencias = listaEvs
         .map(function (e) {
@@ -214,23 +248,20 @@ function TablaPedidos() {
       }
     })
 
-    // Crear libro y hoja de cálculo
     const hoja = XLSX.utils.json_to_sheet(datosExcel)
     const libro = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(libro, hoja, 'Reporte Pedidos')
 
-    // Ajustar ancho automático de columnas
     hoja['!cols'] = [
-      { wch: 15 }, // Factura
-      { wch: 25 }, // Cliente
-      { wch: 35 }, // Dirección
-      { wch: 12 }, // Estatus
-      { wch: 22 }, // Chofer
-      { wch: 15 }, // Fecha
-      { wch: 50 }, // Evidencias
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 35 },
+      { wch: 12 },
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 50 },
     ]
 
-    // Descargar archivo
     const fechaActual = new Date().toISOString().split('T')[0]
     XLSX.writeFile(libro, `Reporte_Pedidos_${fechaActual}.xlsx`)
   }
@@ -241,6 +272,8 @@ function TablaPedidos() {
     setFiltroChofer('todos')
     setFechaDesde('')
     setFechaHasta('')
+    setCampoOrden('creado_en')
+    setDireccionOrden('desc')
     setPaginaActual(1)
   }
 
@@ -257,7 +290,7 @@ function TablaPedidos() {
       {/* ENCABEZADO Y BOTONES PRINCIPALES */}
       <div style={estilos.encabezado}>
         <h3 style={estilos.titulo}>
-          📑 Lista de pedidos ({pedidosFiltrados.length})
+          📑 Lista de pedidos ({pedidosOrdenados.length})
         </h3>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={exportarAExcel} style={estilos.botonExcel}>
@@ -367,13 +400,37 @@ function TablaPedidos() {
         <table style={estilos.tabla}>
           <thead>
             <tr>
-              <th style={estilos.celdaEncabezado}>Factura</th>
-              <th style={estilos.celdaEncabezado}>Cliente</th>
+              <th
+                onClick={() => manejarOrden('numero_factura')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Factura"
+              >
+                Factura{obtenerIconoOrden('numero_factura')}
+              </th>
+              <th
+                onClick={() => manejarOrden('cliente')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Cliente"
+              >
+                Cliente{obtenerIconoOrden('cliente')}
+              </th>
               <th style={estilos.celdaEncabezado}>Dirección</th>
-              <th style={estilos.celdaEncabezado}>Estatus</th>
+              <th
+                onClick={() => manejarOrden('estatus')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Estatus"
+              >
+                Estatus{obtenerIconoOrden('estatus')}
+              </th>
               <th style={estilos.celdaEncabezado}>Chofer asignado</th>
               <th style={estilos.celdaEncabezado}>WhatsApp</th>
-              <th style={estilos.celdaEncabezado}>Fecha de carga</th>
+              <th
+                onClick={() => manejarOrden('creado_en')}
+                style={estilos.celdaEncabezadoInteractiva}
+                title="Haz clic para ordenar por Fecha de Carga"
+              >
+                Fecha de Carga{obtenerIconoOrden('creado_en')}
+              </th>
               <th style={estilos.celdaEncabezado}>Evidencias y Hora Subida</th>
               <th style={{ ...estilos.celdaEncabezado, textAlign: 'center' }}>Eliminar</th>
             </tr>
@@ -477,7 +534,7 @@ function TablaPedidos() {
         </table>
       </div>
 
-      {pedidosFiltrados.length === 0 && (
+      {pedidosOrdenados.length === 0 && (
         <p style={{ color: '#64748b', marginTop: '1rem', textAlign: 'center' }}>
           No se encontraron pedidos con los filtros aplicados.
         </p>
@@ -531,7 +588,7 @@ const estilos = {
   },
   encabezado: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justify: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
     flexWrap: 'wrap',
@@ -629,7 +686,7 @@ const estilos = {
   tabla: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '950px', // Garantiza que las columnas no se encanten
+    minWidth: '950px',
   },
   celdaEncabezado: {
     textAlign: 'left',
@@ -641,6 +698,20 @@ const estilos = {
     textTransform: 'uppercase',
     letterSpacing: '0.03em',
     whiteSpace: 'nowrap',
+  },
+  celdaEncabezadoInteractiva: {
+    textAlign: 'left',
+    padding: '0.6rem 0.5rem',
+    borderBottom: '2px solid #e5e7eb',
+    background: '#f1f5f9',
+    fontSize: '0.78rem',
+    color: '#0f172a',
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: '0.03em',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    userSelect: 'none',
   },
   fila: {
     transition: 'background 0.1s ease',
@@ -676,7 +747,7 @@ const estilos = {
   },
   botonWhatsApp: {
     display: 'inline-block',
-    padding: '0.3rem 0.6rem',
+    padding: '0.35rem 0.6rem',
     background: '#25D366',
     color: '#fff',
     borderRadius: '6px',
