@@ -109,6 +109,23 @@ function TablaPedidos() {
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`
   }
 
+  // Función para dar formato legible a la fecha y hora de la evidencia
+  function formatearFechaHora(fechaIso) {
+    if (!fechaIso) return ''
+    const f = new Date(fechaIso)
+    const fecha = f.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+    const hora = f.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    })
+    return `${fecha} - ${hora}`
+  }
+
   // --- LÓGICA DE FILTRADO ---
   const listaPedidos = Array.isArray(pedidos) ? pedidos : []
   const terminoBuscado = (busqueda || '').toLowerCase().trim()
@@ -179,7 +196,8 @@ function TablaPedidos() {
       const listaEvs = evidencias[pedido.id] || []
       const urlsEvidencias = listaEvs
         .map(function (e) {
-          return e.archivo_url
+          const fechaEv = e.subido_en ? ` (${formatearFechaHora(e.subido_en)})` : ''
+          return `${e.archivo_url}${fechaEv}`
         })
         .join(' | ')
 
@@ -192,7 +210,7 @@ function TablaPedidos() {
         'Fecha Carga': pedido.creado_en
           ? new Date(pedido.creado_en).toLocaleDateString()
           : '—',
-        Evidencias: urlsEvidencias || 'Sin evidencias',
+        'Evidencias y Fecha Subida': urlsEvidencias || 'Sin evidencias',
       }
     })
 
@@ -209,7 +227,7 @@ function TablaPedidos() {
       { wch: 12 }, // Estatus
       { wch: 22 }, // Chofer
       { wch: 15 }, // Fecha
-      { wch: 40 }, // Evidencias
+      { wch: 50 }, // Evidencias
     ]
 
     // Descargar archivo
@@ -285,7 +303,7 @@ function TablaPedidos() {
           </select>
         </div>
 
-        {/* NUEVO: Filtro por Chofer */}
+        {/* Filtro por Chofer */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Chofer:</label>
           <select
@@ -356,7 +374,7 @@ function TablaPedidos() {
               <th style={estilos.celdaEncabezado}>Chofer asignado</th>
               <th style={estilos.celdaEncabezado}>WhatsApp</th>
               <th style={estilos.celdaEncabezado}>Fecha de carga</th>
-              <th style={estilos.celdaEncabezado}>Evidencias</th>
+              <th style={estilos.celdaEncabezado}>Evidencias y Hora Subida</th>
               <th style={estilos.celdaEncabezado}>Eliminar</th>
             </tr>
           </thead>
@@ -424,15 +442,21 @@ function TablaPedidos() {
                       <div style={estilos.contenedorEvidencias}>
                         {listaEvidencias.map(function (ev, index) {
                           return (
-                            <a
-                              key={index}
-                              href={ev.archivo_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={estilos.linkEvidencia}
-                            >
-                              📎 Archivo {index + 1}
-                            </a>
+                            <div key={index} style={estilos.bloqueEvidencia}>
+                              <a
+                                href={ev.archivo_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={estilos.linkEvidencia}
+                              >
+                                📎 Archivo {index + 1}
+                              </a>
+                              {ev.subido_en && (
+                                <span style={estilos.textoHoraSubida}>
+                                  ⏱️ {formatearFechaHora(ev.subido_en)}
+                                </span>
+                              )}
+                            </div>
                           )
                         })}
                       </div>
@@ -505,7 +529,7 @@ const estilos = {
   },
   encabezado: {
     display: 'flex',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
     flexWrap: 'wrap',
@@ -657,13 +681,23 @@ const estilos = {
   contenedorEvidencias: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.25rem',
+    gap: '0.4rem',
+  },
+  bloqueEvidencia: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.1rem',
   },
   linkEvidencia: {
     color: '#2563eb',
     textDecoration: 'none',
     fontWeight: 'bold',
     fontSize: '0.8rem',
+  },
+  textoHoraSubida: {
+    fontSize: '0.72rem',
+    color: '#64748b',
+    fontWeight: '500',
   },
   paginacion: {
     display: 'flex',
