@@ -1,4 +1,5 @@
 // src/pages/DashboardChofer.jsx
+import emailjs from '@emailjs/browser'
 import MetricasChofer from '../components/MetricasChofer'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -137,6 +138,25 @@ function DashboardChofer() {
       }))
 
       await cambiarEstatus(pedidoId, 'completada')
+
+      // --- NOTIFICACIÓN AUTOMÁTICA POR CORREO AL ADMINISTRADOR ---
+      try {
+        const pedidoActual = pedidos.find((p) => p.id === pedidoId)
+        emailjs.send(
+          'service_94plomw',
+          'template_ou70wbx',
+          {
+            numero_factura: pedidoActual?.numero_factura || 'N/A',
+            cliente: pedidoActual?.cliente || 'Cliente sin nombre',
+            chofer_nombre: perfil?.nombre_completo || 'Chofer',
+            admin_email: 'admin@quiptech.com', // Puedes cambiar este correo si lo requieres
+          },
+          'lc0yHiWMDUZy1348j'
+        )
+      } catch (errEmail) {
+        console.error('No se pudo enviar la notificación por correo:', errEmail)
+      }
+
       setMensaje('✅ Evidencia subida correctamente.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
