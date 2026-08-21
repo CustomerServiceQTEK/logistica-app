@@ -454,7 +454,7 @@ function TablaPedidos() {
               >
                 Chofer asignado{obtenerIconoOrden('chofer')}
               </th>
-              <th style={estilos.celdaEncabezado}>WhatsApp</th>
+              <th style={estilos.celdaEncabezado}>Vendedor Email</th>
               <th
                 onClick={() => manejarOrden('creado_en')}
                 style={estilos.celdaEncabezadoInteractiva}
@@ -509,17 +509,9 @@ function TablaPedidos() {
                       })}
                     </select>
                   </td>
-                  <td style={estilos.celda}>
-                    <a
-                      href={obtenerUrlWhatsApp(pedido)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={estilos.botonWhatsApp}
-                      title="Enviar detalles por WhatsApp"
-                    >
-                      💬 Enviar
-                    </a>
-                  </td>
+                  <td style={{ ...estilos.celda, color: '#2563eb', fontWeight: 'bold' }}>
+  {pedido.vendedor_email || 'Sin vendedor'}
+</td>
                   <td style={estilos.celda}>
                     {pedido.creado_en
                       ? formatearFechaHora(pedido.creado_en)
