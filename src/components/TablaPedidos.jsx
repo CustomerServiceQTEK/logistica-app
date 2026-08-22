@@ -6,7 +6,7 @@ import EliminarPedido from './EliminarPedido'
 
 const PEDIDOS_POR_PAGINA = 25
 
-function TablaPedidos() {
+function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = '' }) {
   const [pedidos, setPedidos] = useState([])
   const [choferes, setChoferes] = useState([])
   const [evidencias, setEvidencias] = useState({})
@@ -15,14 +15,29 @@ function TablaPedidos() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEstatus, setFiltroEstatus] = useState('todos') // todos | pendiente | completada
-  const [filtroChofer, setFiltroChofer] = useState('todos') // todos | sin_asignar | id_del_chofer
+  const [filtroEstatus, setFiltroEstatus] = useState(filtroEstatusInicial) // todos | pendiente | completada
+  const [filtroChofer, setFiltroChofer] = useState(filtroChoferInicial || 'todos') // todos | sin_asignar | id_del_chofer
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
 
   // Ordenamiento dinámico por columna
-  const [campoOrden, setCampoOrden] = useState('creado_en') // creado_en | numero_factura | cliente | direccion | estatus | chofer
-  const [direccionOrden, setDireccionOrden] = useState('desc') // asc | desc
+  const [campoOrden, setCampoOrden] = useState('creado_en')
+  const [direccionOrden, setDireccionOrden] = useState('desc')
+
+  // ESCUCHAR Y REACCIONAR A LOS CAMBIOS DE LAS MÉTRICAS/INDICADORES
+  useEffect(() => {
+    if (filtroEstatusInicial) {
+      setFiltroEstatus(filtroEstatusInicial)
+      setPaginaActual(1)
+    }
+  }, [filtroEstatusInicial])
+
+  useEffect(() => {
+    if (filtroChoferInicial !== undefined) {
+      setFiltroChofer(filtroChoferInicial || 'todos')
+      setPaginaActual(1)
+    }
+  }, [filtroChoferInicial])
 
   useEffect(() => {
     cargarPedidos()
@@ -163,7 +178,7 @@ function TablaPedidos() {
   const pedidosFiltrados = listaPedidos.filter(function (pedido) {
     if (!pedido) return false
 
-    // 1. Filtro de Texto (Factura, Cliente, Dirección)
+    // 1. Filtro de Texto
     const factura = (pedido.numero_factura || '').toString().toLowerCase()
     const cliente = (pedido.cliente || '').toLowerCase()
     const direccion = (pedido.direccion || '').toLowerCase()
@@ -188,7 +203,7 @@ function TablaPedidos() {
     // 4. Filtro de Fechas
     let coincideFecha = true
     if (pedido.creado_en) {
-      const fechaPedido = pedido.creado_en.split('T')[0] // Formato YYYY-MM-DD
+      const fechaPedido = pedido.creado_en.split('T')[0]
       if (fechaDesde && fechaPedido < fechaDesde) {
         coincideFecha = false
       }
@@ -229,7 +244,6 @@ function TablaPedidos() {
     indiceInicial + PEDIDOS_POR_PAGINA
   )
 
-  // Indicador de flecha para el encabezado
   function obtenerIconoOrden(campo) {
     if (campoOrden !== campo) return ' ↕'
     return direccionOrden === 'asc' ? ' ▲' : ' ▼'
@@ -245,7 +259,6 @@ function TablaPedidos() {
     const datosExcel = pedidosOrdenados.map(function (pedido) {
       const listaEvs = evidencias[pedido.id] || []
       
-      // Separar limpiamente las URLs de la fecha de subida
       const urlsEvidencias = listaEvs
         .map((e) => obtenerUrlCompletaEvidencia(e.archivo_url))
         .join(' | ')
@@ -323,7 +336,6 @@ function TablaPedidos() {
 
       {/* BARRA DE FILTROS Y BÚSQUEDA */}
       <div style={estilos.panelFiltros}>
-        {/* Buscador */}
         <div style={estilos.grupoFiltroBusqueda}>
           <span style={{ fontSize: '1rem' }}>🔍</span>
           <input
@@ -338,7 +350,6 @@ function TablaPedidos() {
           />
         </div>
 
-        {/* Filtro por Estatus */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Estatus:</label>
           <select
@@ -355,7 +366,6 @@ function TablaPedidos() {
           </select>
         </div>
 
-        {/* Filtro por Chofer */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Chofer:</label>
           <select
@@ -378,7 +388,6 @@ function TablaPedidos() {
           </select>
         </div>
 
-        {/* Filtro Fecha Desde */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Desde:</label>
           <input
@@ -392,7 +401,6 @@ function TablaPedidos() {
           />
         </div>
 
-        {/* Filtro Fecha Hasta */}
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Hasta:</label>
           <input
@@ -406,7 +414,6 @@ function TablaPedidos() {
           />
         </div>
 
-        {/* Botón Limpiar */}
         {(busqueda || filtroEstatus !== 'todos' || filtroChofer !== 'todos' || fechaDesde || fechaHasta) && (
           <button onClick={limpiarFiltros} style={estilos.botonLimpiarFiltros}>
             ✖ Limpiar filtros
@@ -510,8 +517,8 @@ function TablaPedidos() {
                     </select>
                   </td>
                   <td style={{ ...estilos.celda, color: '#2563eb', fontWeight: 'bold' }}>
-  {pedido.vendedor_email || 'Sin vendedor'}
-</td>
+                    {pedido.vendedor_email || 'Sin vendedor'}
+                  </td>
                   <td style={estilos.celda}>
                     {pedido.creado_en
                       ? formatearFechaHora(pedido.creado_en)
@@ -803,7 +810,7 @@ const estilos = {
   },
   paginacion: {
     display: 'flex',
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
     gap: '1rem',
     marginTop: '1.2rem',
