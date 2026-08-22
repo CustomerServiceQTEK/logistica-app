@@ -136,6 +136,16 @@ function TablaPedidos() {
     return `${fecha} - ${hora}`
   }
 
+  // Función para asegurar que las URLs de archivos sean públicas y limpias
+  function obtenerUrlCompletaEvidencia(urlOriginal) {
+    if (!urlOriginal) return ''
+    if (urlOriginal.startsWith('http://') || urlOriginal.startsWith('https://')) {
+      return urlOriginal
+    }
+    const { data } = supabase.storage.from('evidencias').getPublicUrl(urlOriginal)
+    return data?.publicUrl || urlOriginal
+  }
+
   // Función para manejar el clic de ordenamiento en los encabezados
   function manejarOrden(campo) {
     if (campoOrden === campo) {
@@ -234,11 +244,14 @@ function TablaPedidos() {
 
     const datosExcel = pedidosOrdenados.map(function (pedido) {
       const listaEvs = evidencias[pedido.id] || []
+      
+      // Separar limpiamente las URLs de la fecha de subida
       const urlsEvidencias = listaEvs
-        .map(function (e) {
-          const fechaEv = e.subido_en ? ` (${formatearFechaHora(e.subido_en)})` : ''
-          return `${e.archivo_url}${fechaEv}`
-        })
+        .map((e) => obtenerUrlCompletaEvidencia(e.archivo_url))
+        .join(' | ')
+
+      const fechasSubida = listaEvs
+        .map((e) => (e.subido_en ? formatearFechaHora(e.subido_en) : 'Sin fecha'))
         .join(' | ')
 
       return {
@@ -247,8 +260,9 @@ function TablaPedidos() {
         Dirección: pedido.direccion || '—',
         Estatus: pedido.estatus === 'completada' ? 'Completada' : 'Pendiente',
         'Chofer Asignado': mapaChoferes[pedido.chofer_id] || 'Sin asignar',
-        'Fecha Carga': pedido.creado_en ? formatearFechaHora(pedido.creado_en) : '—',
-        'Evidencias y Fecha Subida': urlsEvidencias || 'Sin evidencias',
+        'Fecha y Hora Carga': pedido.creado_en ? formatearFechaHora(pedido.creado_en) : '—',
+        'Fecha y Hora Subida Evidencia': fechasSubida || 'Sin evidencias',
+        'Enlace a Evidencias': urlsEvidencias || 'Sin evidencias',
       }
     })
 
@@ -262,7 +276,8 @@ function TablaPedidos() {
       { wch: 35 },
       { wch: 12 },
       { wch: 22 },
-      { wch: 20 },
+      { wch: 22 },
+      { wch: 25 },
       { wch: 50 },
     ]
 
@@ -439,7 +454,7 @@ function TablaPedidos() {
               >
                 Chofer asignado{obtenerIconoOrden('chofer')}
               </th>
-              <th style={estilos.celdaEncabezado}>WhatsApp</th>
+              <th style={estilos.celdaEncabezado}>Vendedor Email</th>
               <th
                 onClick={() => manejarOrden('creado_en')}
                 style={estilos.celdaEncabezadoInteractiva}
@@ -494,17 +509,9 @@ function TablaPedidos() {
                       })}
                     </select>
                   </td>
-                  <td style={estilos.celda}>
-                    <a
-                      href={obtenerUrlWhatsApp(pedido)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={estilos.botonWhatsApp}
-                      title="Enviar detalles por WhatsApp"
-                    >
-                      💬 Enviar
-                    </a>
-                  </td>
+                  <td style={{ ...estilos.celda, color: '#2563eb', fontWeight: 'bold' }}>
+  {pedido.vendedor_email || 'Sin vendedor'}
+</td>
                   <td style={estilos.celda}>
                     {pedido.creado_en
                       ? formatearFechaHora(pedido.creado_en)
@@ -514,10 +521,11 @@ function TablaPedidos() {
                     {listaEvidencias.length > 0 ? (
                       <div style={estilos.contenedorEvidencias}>
                         {listaEvidencias.map(function (ev, index) {
+                          const urlCompleta = obtenerUrlCompletaEvidencia(ev.archivo_url)
                           return (
                             <div key={index} style={estilos.bloqueEvidencia}>
                               <a
-                                href={ev.archivo_url}
+                                href={urlCompleta}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={estilos.linkEvidencia}
@@ -604,7 +612,7 @@ const estilos = {
   },
   encabezado: {
     display: 'flex',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '1rem',
     flexWrap: 'wrap',

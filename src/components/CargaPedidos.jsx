@@ -1,62 +1,83 @@
 // src/components/CargaPedidos.jsx
 import { useState } from 'react'
-import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
 
 function CargaPedidos({ onExito }) {
+  const [textoPegado, setTextoPegado] = useState('')
   const [datos, setDatos] = useState([])
-  const [nombreArchivo, setNombreArchivo] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [tipoMensaje, setTipoMensaje] = useState('') // 'exito' | 'advertencia' | 'error'
 
-  function manejarArchivo(e) {
-    const archivo = e.target.files[0]
-    if (!archivo) return
-
-    setNombreArchivo(archivo.name)
+  // Procesa el texto pegado de SAP B1
+  function procesarTextoPegado(e) {
+    const texto = e.target.value
+    setTextoPegado(texto)
     setMensaje('')
 
-    const lector = new FileReader()
-
-    lector.onload = (evento) => {
-      const workbook = XLSX.read(evento.target.result, { type: 'binary' })
-      const primeraHoja = workbook.Sheets[workbook.SheetNames[0]]
-      const filas = XLSX.utils.sheet_to_json(primeraHoja)
-
-      // Normalizar datos para evitar fallos por espacios o formato
-      const filasLimpias = filas.map((fila) => {
-        // Buscar la llave 'numero_factura' ignorando mayúsculas/espacios
-        const claveFactura = Object.keys(fila).find(
-          (k) => k.trim().toLowerCase() === 'numero_factura'
-        )
-        const numFactura = claveFactura ? String(fila[claveFactura]).trim() : ''
-
-        return {
-          ...fila,
-          numero_factura: numFactura,
-        }
-      }).filter(f => f.numero_factura !== '') // Descartar filas sin factura
-
-      setDatos(filasLimpias)
+    if (!texto.trim()) {
+      setDatos([])
+      return
     }
 
-    lector.readAsBinaryString(archivo)
+    const filas = texto.trim().split('\n')
+    const filasProcesadas = []
+
+    filas.forEach((fila) => {
+      // SAP B1 separa columnas por tabuladores (\t) al copiar
+      const columnas = fila.split('\t')
+
+      // Ignorar encabezados de SAP
+      if (
+        columnas[0]?.toLowerCase().includes('document') ||
+        columnas[0]?.includes('#') ||
+        columnas[1]?.toLowerCase().includes('document')
+      ) {
+        return
+      }
+
+      // Si la fila tiene datos suficientes
+      if (columnas.length >= 2) {
+        // Mapeo según columnas de SAP B1:
+        // Columna 1: Document Number
+        // Columna 3: Customer Name
+        // Columna 5: E-Mail Vendedor
+        // Columna 6: Direccion
+        const numFactura = (columnas[1] || columnas[0] || '').trim()
+        const cliente = (columnas[3] || columnas[2] || '').trim()
+        const emailVendedor = (columnas[5] || columnas[4] || '').trim()
+        const direccion = (columnas[6] || columnas[5] || '').trim()
+
+        if (numFactura && numFactura !== '#') {
+          filasProcesadas.push({
+            numero_factura: numFactura,
+            cliente: cliente || 'Cliente SAP',
+            direccion: direccion || 'Dirección registrada en SAP',
+            vendedor_email: emailVendedor.includes('@') ? emailVendedor : null,
+            estatus: 'pendiente',
+          })
+        }
+      }
+    })
+
+    setDatos(filasProcesadas)
   }
 
   async function guardarPedidos() {
+    if (datos.length === 0) return
+
     setGuardando(true)
     setMensaje('')
 
-    // 1. Filtrar duplicados dentro del mismo archivo
+    // 1. Filtrar duplicados dentro del mismo bloque pegado
     const vistos = new Set()
-    const datosSinRepetirEnArchivo = datos.filter((fila) => {
+    const datosSinRepetirEnTexto = datos.filter((fila) => {
       if (vistos.has(fila.numero_factura)) return false
       vistos.add(fila.numero_factura)
       return true
     })
 
-    const numerosFactura = datosSinRepetirEnArchivo.map((f) => f.numero_factura)
+    const numerosFactura = datosSinRepetirEnTexto.map((f) => f.numero_factura)
 
     // 2. Consultar a Supabase qué facturas ya existen
     const { data: existentes, error: errorConsulta } = await supabase
@@ -75,10 +96,10 @@ function CargaPedidos({ onExito }) {
     const yaExistentes = new Set(
       existentes ? existentes.map((p) => String(p.numero_factura).trim()) : []
     )
-    const nuevos = datosSinRepetirEnArchivo.filter(
+    const nuevos = datosSinRepetirEnTexto.filter(
       (f) => !yaExistentes.has(f.numero_factura)
     )
-    const cantidadDuplicados = datosSinRepetirEnArchivo.length - nuevos.length
+    const cantidadDuplicados = datosSinRepetirEnTexto.length - nuevos.length
 
     if (nuevos.length === 0) {
       setTipoMensaje('advertencia')
@@ -97,14 +118,14 @@ function CargaPedidos({ onExito }) {
       setTipoMensaje('error')
       setMensaje('Error al guardar: ' + error.message)
     } else {
-      let texto = `Se guardaron ${data.length} pedidos nuevos.`
+      let textoMsg = `Se guardaron ${data.length} pedidos nuevos.`
       if (cantidadDuplicados > 0) {
-        texto += ` Se omitieron ${cantidadDuplicados} por estar duplicados.`
+        textoMsg += ` Se omitieron ${cantidadDuplicados} por estar duplicados.`
       }
       setTipoMensaje('exito')
-      setMensaje(texto)
+      setMensaje(textoMsg)
       setDatos([])
-      setNombreArchivo('')
+      setTextoPegado('')
       if (onExito) onExito()
     }
 
@@ -113,21 +134,23 @@ function CargaPedidos({ onExito }) {
 
   return (
     <div style={estilos.contenedor}>
-      <h3 style={estilos.titulo}>📤 Cargar lista de pedidos</h3>
-      <p style={estilos.subtitulo}>Archivos Excel (.xlsx) o CSV con columnas: numero_factura, cliente, direccion</p>
+      <h3 style={estilos.titulo}>📋 Cargar Pedidos desde SAP B1</h3>
+      <p style={estilos.subtitulo}>
+        En SAP B1 presiona <b>"Copy Data"</b> y pega el contenido aquí abajo con <b>Ctrl + V</b>:
+      </p>
 
-      <label style={estilos.zonaCarga}>
-        <span style={{ fontSize: '1.5rem' }}>📁</span>
-        <span style={{ fontWeight: 'bold' }}>
-          {nombreArchivo || 'Selecciona un archivo'}
-        </span>
-        <input type="file" accept=".xlsx,.xls,.csv" onChange={manejarArchivo} style={{ display: 'none' }} />
-      </label>
+      <textarea
+        rows={5}
+        placeholder="Pega aquí los datos copiados de SAP B1..."
+        value={textoPegado}
+        onChange={procesarTextoPegado}
+        style={estilos.textarea}
+      />
 
       {datos.length > 0 && (
         <div style={{ marginTop: '1.2rem' }}>
-          <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '0.5rem' }}>
-            {datos.length} filas listas para procesar
+          <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            📊 {datos.length} facturas detectadas listas para guardar:
           </p>
 
           <div style={{ overflowX: 'auto' }}>
@@ -136,14 +159,18 @@ function CargaPedidos({ onExito }) {
                 <tr>
                   <th style={estilos.celdaEncabezado}>Factura</th>
                   <th style={estilos.celdaEncabezado}>Cliente</th>
+                  <th style={estilos.celdaEncabezado}>Correo Vendedor</th>
                   <th style={estilos.celdaEncabezado}>Dirección</th>
                 </tr>
               </thead>
               <tbody>
                 {datos.slice(0, 5).map((fila, indice) => (
                   <tr key={indice}>
-                    <td style={estilos.celda}>{fila.numero_factura}</td>
+                    <td style={{ ...estilos.celda, fontWeight: 'bold' }}>{fila.numero_factura}</td>
                     <td style={estilos.celda}>{fila.cliente}</td>
+                    <td style={{ ...estilos.celda, color: '#2563eb' }}>
+                      {fila.vendedor_email || 'Sin correo'}
+                    </td>
                     <td style={estilos.celda}>{fila.direccion}</td>
                   </tr>
                 ))}
@@ -158,7 +185,7 @@ function CargaPedidos({ onExito }) {
           )}
 
           <button onClick={guardarPedidos} disabled={guardando} style={estilos.boton}>
-            {guardando ? 'Guardando...' : `Guardar ${datos.length} pedidos`}
+            {guardando ? 'Verificando y Guardando...' : `🚀 Guardar ${datos.length} pedidos`}
           </button>
         </div>
       )}
@@ -190,17 +217,14 @@ const estilos = {
     fontSize: '0.85rem',
     color: '#64748b',
   },
-  zonaCarga: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '1.5rem',
-    border: '2px dashed #cbd5e1',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    background: '#f8fafc',
-    textAlign: 'center',
+  textarea: {
+    width: '100%',
+    padding: '0.75rem',
+    borderRadius: '8px',
+    border: '1px solid #cbd5e1',
+    fontFamily: 'sans-serif',
+    fontSize: '0.85rem',
+    boxSizing: 'border-box',
   },
   tablaPreview: {
     width: '100%',
@@ -217,7 +241,7 @@ const estilos = {
   celda: {
     padding: '0.5rem',
     borderBottom: '1px solid #f1f5f9',
-    fontSize: '0.9rem',
+    fontSize: '0.88rem',
   },
   boton: {
     marginTop: '1rem',
@@ -235,6 +259,7 @@ const estilos = {
     padding: '0.7rem 1rem',
     borderRadius: '8px',
     fontSize: '0.9rem',
+    fontWeight: 'bold',
   },
 }
 

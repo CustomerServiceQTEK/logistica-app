@@ -1,13 +1,39 @@
 // src/components/SubirEvidencia.jsx
 // Permite al chofer tomar foto directa con la cámara o adjuntar archivos (PDF/imagen)
-
 import { useState } from 'react'
+import emailjs from '@emailjs/browser'
 import { supabase } from '../lib/supabaseClient'
 
 function SubirEvidencia({ pedido, choferId, onCompletado }) {
   const [subiendo, setSubiendo] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [esError, setEsError] = useState(false)
+
+  // Función para notificar por correo al vendedor
+  async function notificarVendedor(urlEvidencia) {
+    if (!pedido?.vendedor_email) {
+      console.log('El pedido no tiene correo de vendedor asignado.')
+      return
+    }
+
+    try {
+      await emailjs.send(
+        'service_94plomw',
+        'template_tbh0dqq',
+        {
+          vendedor_email: pedido.vendedor_email,
+          numero_factura: pedido.numero_factura || 'N/A',
+          cliente: pedido.cliente || 'Cliente',
+          direccion: pedido.direccion || 'Dirección registrada',
+          link_evidencia: urlEvidencia,
+        },
+        'lc0yHiWMDUZy1348j'
+      )
+      console.log('📧 Correo enviado con éxito a:', pedido.vendedor_email)
+    } catch (errEmail) {
+      console.error('❌ Error al enviar correo:', errEmail)
+    }
+  }
 
   async function manejarArchivo(e) {
     const archivo = e.target.files[0]
@@ -21,6 +47,7 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
       const extension = archivo.name.split('.').pop()
       const nombreArchivo = `${pedido.numero_factura}_${Date.now()}.${extension}`
 
+      // 1. Subir archivo al bucket de evidencias
       const { error: errorSubida } = await supabase.storage
         .from('evidencias')
         .upload(nombreArchivo, archivo)
@@ -32,16 +59,19 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
         return
       }
 
+      // 2. Obtener la URL pública de la evidencia
       const { data: urlData } = supabase.storage
         .from('evidencias')
         .getPublicUrl(nombreArchivo)
 
+      const urlEvidenciaCompleta = urlData?.publicUrl || ''
       const tipoArchivo = archivo.type.includes('pdf') ? 'pdf' : 'imagen'
 
+      // 3. Registrar evidencia en la base de datos
       const { error: errorInsert } = await supabase.from('evidencias').insert({
         pedido_id: pedido.id,
         chofer_id: choferId,
-        archivo_url: urlData.publicUrl,
+        archivo_url: urlEvidenciaCompleta,
         tipo_archivo: tipoArchivo,
       })
 
@@ -52,6 +82,7 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
         return
       }
 
+      // 4. Actualizar el estatus del pedido a completada
       const { error: errorUpdate } = await supabase
         .from('pedidos')
         .update({ estatus: 'completada' })
@@ -64,7 +95,10 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
         return
       }
 
-      setMensaje('¡Evidencia subida!')
+      // 5. Enviar notificación por correo al vendedor
+      await notificarVendedor(urlEvidenciaCompleta)
+
+      setMensaje('¡Evidencia subida y correo enviado al vendedor!')
       if (onCompletado) onCompletado()
 
     } catch (err) {
@@ -79,7 +113,7 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
     <div style={estilos.contenedorBotones}>
       {/* Botón de Cámara Directa */}
       <label style={{ ...estilos.botonCamara, opacity: subiendo ? 0.6 : 1 }}>
-        {subiendo ? 'Subiendo...' : '📸 Tomar foto'}
+        {subiendo ? 'Procesando...' : '📸 Tomar foto'}
         <input
           type="file"
           accept="image/*"
@@ -146,6 +180,7 @@ const estilos = {
     marginTop: '0.4rem',
     width: '100%',
     textAlign: 'right',
+    fontWeight: 'bold',
   },
 }
 
