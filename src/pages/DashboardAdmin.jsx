@@ -13,9 +13,10 @@ function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
   
-  // ESTADOS PARA EL FILTRO DE CHOFER
+  // ESTADOS PARA LOS FILTROS DINÁMICOS
   const [choferes, setChoferes] = useState([])
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
+  const [filtroEstatus, setFiltroEstatus] = useState('todos') // 'todos' | 'pendiente' | 'completada'
 
   useEffect(() => {
     cargarChoferesDesdePedidos()
@@ -45,6 +46,16 @@ function DashboardAdmin() {
       }
     } catch (e) {
       console.error('Error al obtener choferes desde pedidos:', e)
+    }
+  }
+
+  // Manejador al hacer clic en las métricas/indicadores
+  function manejarSeleccionEstatus(nuevoEstatus) {
+    setFiltroEstatus(nuevoEstatus)
+    // Desplazamiento suave hacia la tabla de pedidos
+    const elementoTabla = document.getElementById('seccion-tabla-pedidos')
+    if (elementoTabla) {
+      elementoTabla.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
@@ -85,15 +96,32 @@ function DashboardAdmin() {
           </select>
         </div>
 
-        {/* COMPONENTES DE MÉTRICAS */}
-        <Indicadores key={refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
-        <MetricasTiempos key={'metricas-' + refrescar + '-' + choferSeleccionado} choferId={choferSeleccionado} />
+        {/* COMPONENTES DE MÉTRICAS INTERACTIVAS */}
+        <Indicadores 
+          key={refrescar + '-' + choferSeleccionado} 
+          choferId={choferSeleccionado} 
+          onSeleccionarEstatus={manejarSeleccionEstatus}
+          estatusActivo={filtroEstatus}
+        />
         
-        {/* NUEVA TABLA COMPARATIVA POR CHOFER */}
+        <MetricasTiempos 
+          key={'metricas-' + refrescar + '-' + choferSeleccionado} 
+          choferId={choferSeleccionado} 
+        />
+        
+        {/* TABLA COMPARATIVA POR CHOFER */}
         <TablaComparativaChoferes refrescar={refrescar} />
 
         <CargaPedidos onExito={() => setRefrescar((valor) => valor + 1)} />
-        <TablaPedidos key={'tabla-' + refrescar} />
+
+        {/* TABLA DE PEDIDOS CON ID DE DESPLAZAMIENTO Y FILTRO AUTOMÁTICO */}
+        <div id="seccion-tabla-pedidos">
+          <TablaPedidos 
+            key={'tabla-' + refrescar} 
+            filtroEstatusInicial={filtroEstatus}
+            filtroChoferInicial={choferSeleccionado}
+          />
+        </div>
       </div>
     </div>
   )
