@@ -1,11 +1,11 @@
 // src/components/Indicadores.jsx
-// Muestra tarjetas con el total de pedidos, pendientes y completadas (filtradas por chofer si aplica)
+// Muestra tarjetas interactivas con el total de pedidos, pendientes y completadas (filtradas por chofer si aplica)
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Skeleton from './Skeleton'
 
-function Indicadores({ choferId }) {
+function Indicadores({ choferId, onSeleccionarEstatus, estatusActivo }) {
   const [total, setTotal] = useState(0)
   const [pendientes, setPendientes] = useState(0)
   const [completadas, setCompletadas] = useState(0)
@@ -64,16 +64,47 @@ function Indicadores({ choferId }) {
 
   return (
     <div style={estilos.contenedor}>
-      <Tarjeta icono="📋" titulo="Total de entregas" valor={total} color="#2563eb" fondo="#eff6ff" />
-      <Tarjeta icono="⏳" titulo="Pendientes" valor={pendientes} color="#d97706" fondo="#fffbeb" />
-      <Tarjeta icono="✅" titulo="Completadas" valor={completadas} color="#16a34a" fondo="#f0fdf4" />
+      <Tarjeta 
+        icono="📋" 
+        titulo="Total de entregas" 
+        valor={total} 
+        color="#2563eb" 
+        fondo="#eff6ff" 
+        onClick={() => onSeleccionarEstatus && onSeleccionarEstatus('todos')}
+        activo={estatusActivo === 'todos'}
+      />
+      <Tarjeta 
+        icono="⏳" 
+        titulo="Pendientes" 
+        valor={pendientes} 
+        color="#d97706" 
+        fondo="#fffbeb" 
+        onClick={() => onSeleccionarEstatus && onSeleccionarEstatus('pendiente')}
+        activo={estatusActivo === 'pendiente'}
+      />
+      <Tarjeta 
+        icono="✅" 
+        titulo="Completadas" 
+        valor={completadas} 
+        color="#16a34a" 
+        fondo="#f0fdf4" 
+        onClick={() => onSeleccionarEstatus && onSeleccionarEstatus('completada')}
+        activo={estatusActivo === 'completada'}
+      />
     </div>
   )
 }
 
-function Tarjeta({ icono, titulo, valor, color, fondo }) {
+function Tarjeta({ icono, titulo, valor, color, fondo, onClick, activo }) {
   return (
-    <div style={estilos.tarjeta}>
+    <div 
+      onClick={onClick}
+      style={{
+        ...estilos.tarjeta,
+        border: activo ? `2px solid ${color}` : '1px solid #e5e7eb',
+        boxShadow: activo ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)' : '0 1px 3px rgba(0,0,0,0.06)',
+      }}
+    >
       <div style={{ ...estilos.iconoContenedor, background: fondo }}>
         <span style={{ fontSize: '1.4rem' }}>{icono}</span>
       </div>
@@ -97,10 +128,11 @@ const estilos = {
     alignItems: 'center',
     gap: '1rem',
     background: '#fff',
-    border: '1px solid #e5e7eb',
     borderRadius: '12px',
     padding: '1.3rem',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    userSelect: 'none',
   },
   iconoContenedor: {
     width: '48px',
