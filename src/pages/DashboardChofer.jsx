@@ -89,7 +89,7 @@ function DashboardChofer() {
     }
   }
 
-  // Subir evidencia y notificar a Vendedor y Administrador
+  // Subir evidencia y notificar ÚNICAMENTE al VENDEDOR
   async function manejarSubirEvidencia(e, pedidoId) {
     const archivo = e.target.files[0]
     if (!archivo) return
@@ -141,7 +141,7 @@ function DashboardChofer() {
 
       const pedidoActual = pedidos.find((p) => p.id === pedidoId)
 
-      // 1. NOTIFICACIÓN AL VENDEDOR (template_tbh0dqq)
+      // --- NOTIFICACIÓN AL VENDEDOR (template_tbh0dqq) ---
       if (pedidoActual?.vendedor_email) {
         try {
           await emailjs.send(
@@ -160,28 +160,11 @@ function DashboardChofer() {
         } catch (errEmailVendedor) {
           console.error('❌ Error enviando correo al vendedor:', errEmailVendedor)
         }
+      } else {
+        console.log('El pedido no tiene un correo de vendedor registrado.')
       }
 
-      // 2. NOTIFICACIÓN AL ADMINISTRADOR (template_ou70wbx)
-      try {
-        await emailjs.send(
-          'service_94plomw',
-          'template_ou70wbx',
-          {
-            numero_factura: pedidoActual?.numero_factura || 'N/A',
-            cliente: pedidoActual?.cliente || 'Cliente sin nombre',
-            chofer_nombre: perfil?.nombre_completo || 'Chofer',
-            admin_email: 'factura@quiptech.com', // Correo activo para notificaciones
-            link_evidencia: archivoUrl,
-          },
-          'lc0yHiWMDUZy1348j'
-        )
-        console.log('📧 Notificación enviada al administrador')
-      } catch (errEmailAdmin) {
-        console.error('❌ Error enviando correo al administrador:', errEmailAdmin)
-      }
-
-      setMensaje('✅ Evidencia subida y notificaciones enviadas.')
+      setMensaje('✅ Evidencia subida y correo enviado al vendedor.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
       alert('Error al subir el archivo: ' + error.message)
