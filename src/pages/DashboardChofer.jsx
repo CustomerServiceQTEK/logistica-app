@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import LogoFlotante from '../components/LogoFlotante'
-import { calcularNitidezImagen } from '../utils/evaluarNitidez'
 
 function DashboardChofer() {
   const { perfil, cerrarSesion } = useAuth()
@@ -15,10 +14,6 @@ function DashboardChofer() {
   const [subiendoId, setSubiendoId] = useState(null)
   const [eliminandoEvId, setEliminandoEvId] = useState(null)
   const [mensaje, setMensaje] = useState('')
-
-  // Estados de calidad de imagen por pedido
-  const [calidadImagen, setCalidadImagen] = useState({})
-  const [evaluandoId, setEvaluandoId] = useState(null)
 
   // Filtro activo por defecto en 'pendiente' y modal de confirmación
   const [filtroEstatus, setFiltroEstatus] = useState('pendiente')
@@ -94,54 +89,10 @@ function DashboardChofer() {
     }
   }
 
-  // Pre-evaluar la imagen capturada antes de enviarla
-  async function seleccionarArchivo(e, pedidoId) {
+  // Subir evidencia de forma directa y notificar al vendedor
+  async function manejarSubirEvidencia(e, pedidoId) {
     const archivo = e.target.files[0]
     if (!archivo) return
-
-    if (archivo.type.includes('pdf')) {
-      setCalidadImagen((prev) => ({
-        ...prev,
-        [pedidoId]: { porcentaje: 100, archivo, mensaje: '📄 Documento PDF listo para subir.', esBloqueado: false }
-      }))
-      return
-    }
-
-    setEvaluandoId(pedidoId)
-    setMensaje('')
-
-    const porcentaje = await calcularNitidezImagen(archivo)
-    let estadoCalidad = { porcentaje, archivo, esBloqueado: false, mensaje: '' }
-
-    if (porcentaje < 40) {
-      estadoCalidad.esBloqueado = true
-      estadoCalidad.mensaje = `❌ Foto borrosa (${porcentaje}%). Por favor tómala nuevamente.`
-    } else if (porcentaje < 65) {
-      estadoCalidad.esBloqueado = false
-      estadoCalidad.mensaje = `⚠️ Foto regular (${porcentaje}%). Procura enfocar mejor.`
-    } else {
-      estadoCalidad.esBloqueado = false
-      estadoCalidad.mensaje = `✅ Foto nítida (${porcentaje}%). Lista para enviar.`
-    }
-
-    setCalidadImagen((prev) => ({ ...prev, [pedidoId]: estadoCalidad }))
-    setEvaluandoId(null)
-  }
-
-  // Deshacer/Descartar foto en pre-evaluación para tomar otra nueva
-  function descartarFotoPrevia(pedidoId) {
-    setCalidadImagen((prev) => {
-      const nuevo = { ...prev }
-      delete nuevo[pedidoId]
-      return nuevo
-    })
-  }
-
-  // Subir evidencia final y notificar ÚNICAMENTE al VENDEDOR
-  async function manejarSubirEvidencia(pedidoId) {
-    const infoCalidad = calidadImagen[pedidoId]
-    const archivo = infoCalidad?.archivo
-    if (!archivo || infoCalidad?.esBloqueado) return
 
     setSubiendoId(pedidoId)
     setMensaje('')
@@ -190,7 +141,7 @@ function DashboardChofer() {
 
       const pedidoActual = pedidos.find((p) => p.id === pedidoId)
 
-      // --- NOTIFICACIÓN AL VENDEDOR (template_tbh0dqq) ---
+      // Notificación al vendedor
       if (pedidoActual?.vendedor_email) {
         try {
           await emailjs.send(
@@ -211,9 +162,6 @@ function DashboardChofer() {
         }
       }
 
-      // Limpiar estado de pre-evaluación tras el envío exitoso
-      descartarFotoPrevia(pedidoId)
-
       setMensaje('✅ Evidencia subida y correo enviado al vendedor.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
@@ -223,7 +171,7 @@ function DashboardChofer() {
     }
   }
 
-  // ELIMINAR / DESHACER ADJUNTO YA GUARDADO
+  // Eliminar / deshacer evidencia
   async function confirmarEliminarEvidencia() {
     if (!evidenciaAEliminar) return
     const { ev, pedidoId } = evidenciaAEliminar
@@ -343,8 +291,6 @@ function DashboardChofer() {
             {pedidosFiltrados.map((pedido) => {
               const esCompletado = pedido.estatus === 'completada'
               const estaCargandoArchivo = subiendoId === pedido.id
-              const estaEvaluando = evaluandoId === pedido.id
-              const infoCalidad = calidadImagen[pedido.id]
               const listaEvidencias = evidencias[pedido.id] || []
 
               return (
@@ -372,27 +318,6 @@ function DashboardChofer() {
                       <strong>📍 Dirección:</strong> {pedido.direccion || '—'}
                     </p>
                   </div>
-
-                  {/* INDICADOR DE NITIDEZ / MENSAJE DE EVALUACIÓN */}
-                  {estaEvaluando && (
-                    <p style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 'bold' }}>
-                      🔍 Analizando legibilidad de la imagen...
-                    </p>
-                  )}
-
-                  {infoCalidad && !estaEvaluando && (
-                    <div style={{
-                      padding: '0.5rem',
-                      borderRadius: '6px',
-                      marginBottom: '0.75rem',
-                      fontSize: '0.8rem',
-                      fontWeight: 'bold',
-                      background: infoCalidad.esBloqueado ? '#fee2e2' : infoCalidad.porcentaje < 65 ? '#fef3c7' : '#dcfce7',
-                      color: infoCalidad.esBloqueado ? '#991b1b' : infoCalidad.porcentaje < 65 ? '#92400e' : '#166534'
-                    }}>
-                      {infoCalidad.mensaje}
-                    </div>
-                  )}
 
                   {listaEvidencias.length > 0 && (
                     <div style={estilos.seccionEvidencias}>
@@ -438,43 +363,19 @@ function DashboardChofer() {
                       </a>
                     )}
 
-                    {!infoCalidad ? (
-                      <label style={estilos.botonSubir}>
-                        {estaEvaluando ? '⏳ Evaluando...' : '📷 Capturar Foto'}
-                        <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          capture="environment"
-                          onChange={(e) => seleccionarArchivo(e, pedido.id)}
-                          style={{ display: 'none' }}
-                          disabled={estaCargandoArchivo || estaEvaluando}
-                        />
-                      </label>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '0.4rem', flex: 1.5 }}>
-                        <button
-                          onClick={() => descartarFotoPrevia(pedido.id)}
-                          disabled={estaCargandoArchivo}
-                          style={estilos.botonDeshacerPrevia}
-                          title="Descartar esta foto y tomar otra"
-                        >
-                          🔄 Cambiar
-                        </button>
-                        
-                        {!infoCalidad.esBloqueado && (
-                          <button
-                            onClick={() => manejarSubirEvidencia(pedido.id)}
-                            disabled={estaCargandoArchivo}
-                            style={{
-                              ...estilos.botonConfirmarEnvio,
-                              opacity: estaCargandoArchivo ? 0.6 : 1
-                            }}
-                          >
-                            {estaCargandoArchivo ? '⏳ Subiendo...' : '🚀 Enviar'}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                    <label style={estilos.botonSubir}>
+                      {estaCargandoArchivo
+                        ? '⏳ Subiendo...'
+                        : '📷 Agregar Evidencia'}
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        capture="environment"
+                        onChange={(e) => manejarSubirEvidencia(e, pedido.id)}
+                        style={{ display: 'none' }}
+                        disabled={estaCargandoArchivo}
+                      />
+                    </label>
                   </div>
                 </div>
               )
@@ -734,29 +635,6 @@ const estilos = {
     fontSize: '0.85rem',
     cursor: 'pointer',
     display: 'inline-block',
-  },
-  botonDeshacerPrevia: {
-    flex: 1,
-    padding: '0.6rem',
-    background: '#e2e8f0',
-    color: '#334155',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    fontSize: '0.8rem',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  botonConfirmarEnvio: {
-    flex: 1.5,
-    textAlign: 'center',
-    padding: '0.6rem',
-    background: '#16a34a',
-    color: '#fff',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    fontSize: '0.85rem',
-    border: 'none',
-    cursor: 'pointer',
   },
   modalOverlay: {
     position: 'fixed',
