@@ -99,7 +99,6 @@ function DashboardChofer() {
     const archivo = e.target.files[0]
     if (!archivo) return
 
-    // Si es un PDF no evaluamos nitidez de cámara, asignamos 100% directo
     if (archivo.type.includes('pdf')) {
       setCalidadImagen((prev) => ({
         ...prev,
@@ -122,14 +121,23 @@ function DashboardChofer() {
       estadoCalidad.mensaje = `⚠️ Foto regular (${porcentaje}%). Procura enfocar mejor.`
     } else {
       estadoCalidad.esBloqueado = false
-      estadoCalidad.mensaje = `✅ Foto nítida (${porcentaje}%). Listo para enviar.`
+      estadoCalidad.mensaje = `✅ Foto nítida (${porcentaje}%). Lista para enviar.`
     }
 
     setCalidadImagen((prev) => ({ ...prev, [pedidoId]: estadoCalidad }))
     setEvaluandoId(null)
   }
 
-  // Subir evidencia y notificar ÚNICAMENTE al VENDEDOR
+  // Deshacer/Descartar foto en pre-evaluación para tomar otra nueva
+  function descartarFotoPrevia(pedidoId) {
+    setCalidadImagen((prev) => {
+      const nuevo = { ...prev }
+      delete nuevo[pedidoId]
+      return nuevo
+    })
+  }
+
+  // Subir evidencia final y notificar ÚNICAMENTE al VENDEDOR
   async function manejarSubirEvidencia(pedidoId) {
     const infoCalidad = calidadImagen[pedidoId]
     const archivo = infoCalidad?.archivo
@@ -203,12 +211,8 @@ function DashboardChofer() {
         }
       }
 
-      // Limpiar estado de pre-evaluación
-      setCalidadImagen((prev) => {
-        const nuevo = { ...prev }
-        delete nuevo[pedidoId]
-        return nuevo
-      })
+      // Limpiar estado de pre-evaluación tras el envío exitoso
+      descartarFotoPrevia(pedidoId)
 
       setMensaje('✅ Evidencia subida y correo enviado al vendedor.')
     } catch (error) {
@@ -219,7 +223,7 @@ function DashboardChofer() {
     }
   }
 
-  // ELIMINAR / DESHACER ADJUNTO
+  // ELIMINAR / DESHACER ADJUNTO YA GUARDADO
   async function confirmarEliminarEvidencia() {
     if (!evidenciaAEliminar) return
     const { ev, pedidoId } = evidenciaAEliminar
@@ -434,7 +438,7 @@ function DashboardChofer() {
                       </a>
                     )}
 
-                    {!infoCalidad || infoCalidad.esBloqueado ? (
+                    {!infoCalidad ? (
                       <label style={estilos.botonSubir}>
                         {estaEvaluando ? '⏳ Evaluando...' : '📷 Capturar Foto'}
                         <input
@@ -447,16 +451,29 @@ function DashboardChofer() {
                         />
                       </label>
                     ) : (
-                      <button
-                        onClick={() => manejarSubirEvidencia(pedido.id)}
-                        disabled={estaCargandoArchivo}
-                        style={{
-                          ...estilos.botonConfirmarEnvio,
-                          opacity: estaCargandoArchivo ? 0.6 : 1
-                        }}
-                      >
-                        {estaCargandoArchivo ? '⏳ Subiendo...' : '🚀 Enviar Evidencia'}
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem', flex: 1.5 }}>
+                        <button
+                          onClick={() => descartarFotoPrevia(pedido.id)}
+                          disabled={estaCargandoArchivo}
+                          style={estilos.botonDeshacerPrevia}
+                          title="Descartar esta foto y tomar otra"
+                        >
+                          🔄 Cambiar
+                        </button>
+                        
+                        {!infoCalidad.esBloqueado && (
+                          <button
+                            onClick={() => manejarSubirEvidencia(pedido.id)}
+                            disabled={estaCargandoArchivo}
+                            style={{
+                              ...estilos.botonConfirmarEnvio,
+                              opacity: estaCargandoArchivo ? 0.6 : 1
+                            }}
+                          >
+                            {estaCargandoArchivo ? '⏳ Subiendo...' : '🚀 Enviar'}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -717,6 +734,17 @@ const estilos = {
     fontSize: '0.85rem',
     cursor: 'pointer',
     display: 'inline-block',
+  },
+  botonDeshacerPrevia: {
+    flex: 1,
+    padding: '0.6rem',
+    background: '#e2e8f0',
+    color: '#334155',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    fontSize: '0.8rem',
+    border: 'none',
+    cursor: 'pointer',
   },
   botonConfirmarEnvio: {
     flex: 1.5,
