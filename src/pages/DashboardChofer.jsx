@@ -15,9 +15,9 @@ function DashboardChofer() {
   const [eliminandoEvId, setEliminandoEvId] = useState(null)
   const [mensaje, setMensaje] = useState('')
 
-  // NUEVOS ESTADOS: Filtro activo por defecto en 'pendiente' y modal de confirmación
+  // Filtro activo por defecto en 'pendiente' y modal de confirmación
   const [filtroEstatus, setFiltroEstatus] = useState('pendiente')
-  const [evidenciaAEliminar, setEvidenciaAEliminar] = useState(null) // Para el modal flotante
+  const [evidenciaAEliminar, setEvidenciaAEliminar] = useState(null)
 
   useEffect(() => {
     if (perfil?.id) {
@@ -89,7 +89,7 @@ function DashboardChofer() {
     }
   }
 
-  // Subir evidencia
+  // Subir evidencia y notificar a Vendedor y Administrador
   async function manejarSubirEvidencia(e, pedidoId) {
     const archivo = e.target.files[0]
     if (!archivo) return
@@ -139,25 +139,49 @@ function DashboardChofer() {
 
       await cambiarEstatus(pedidoId, 'completada')
 
-      // --- NOTIFICACIÓN AUTOMÁTICA POR CORREO AL ADMINISTRADOR ---
+      const pedidoActual = pedidos.find((p) => p.id === pedidoId)
+
+      // 1. NOTIFICACIÓN AL VENDEDOR (template_tbh0dqq)
+      if (pedidoActual?.vendedor_email) {
+        try {
+          await emailjs.send(
+            'service_94plomw',
+            'template_tbh0dqq',
+            {
+              vendedor_email: pedidoActual.vendedor_email,
+              numero_factura: pedidoActual?.numero_factura || 'N/A',
+              cliente: pedidoActual?.cliente || 'Cliente',
+              direccion: pedidoActual?.direccion || 'Dirección registrada',
+              link_evidencia: archivoUrl,
+            },
+            'lc0yHiWMDUZy1348j'
+          )
+          console.log('📧 Notificación enviada al vendedor:', pedidoActual.vendedor_email)
+        } catch (errEmailVendedor) {
+          console.error('❌ Error enviando correo al vendedor:', errEmailVendedor)
+        }
+      }
+
+      // 2. NOTIFICACIÓN AL ADMINISTRADOR (template_ou70wbx)
       try {
-        const pedidoActual = pedidos.find((p) => p.id === pedidoId)
-        emailjs.send(
+        await emailjs.send(
           'service_94plomw',
           'template_ou70wbx',
           {
             numero_factura: pedidoActual?.numero_factura || 'N/A',
             cliente: pedidoActual?.cliente || 'Cliente sin nombre',
             chofer_nombre: perfil?.nombre_completo || 'Chofer',
-            admin_email: 'admin@quiptech.com', // Puedes cambiar este correo si lo requieres
+            admin_email: 'factura@quiptech.com', // Correo activo para notificaciones
+            link_evidencia: archivoUrl,
           },
           'lc0yHiWMDUZy1348j'
         )
-      } catch (errEmail) {
-        console.error('No se pudo enviar la notificación por correo:', errEmail)
+        console.log('📧 Notificación enviada al administrador')
+      } catch (errEmailAdmin) {
+        console.error('❌ Error enviando correo al administrador:', errEmailAdmin)
       }
 
-      setMensaje('✅ Evidencia subida correctamente.')
+      setMensaje('✅ Evidencia subida y notificaciones enviadas.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
       alert('Error al subir el archivo: ' + error.message)
@@ -166,14 +190,14 @@ function DashboardChofer() {
     }
   }
 
-  // ELIMINAR / DESHACER ADJUNTO (Ejecutado tras confirmar en el modal)
+  // ELIMINAR / DESHACER ADJUNTO
   async function confirmarEliminarEvidencia() {
     if (!evidenciaAEliminar) return
     const { ev, pedidoId } = evidenciaAEliminar
 
     setEliminandoEvId(ev.id)
     setMensaje('')
-    setEvidenciaAEliminar(null) // Cerrar modal
+    setEvidenciaAEliminar(null)
 
     try {
       if (ev.archivo_url) {
@@ -225,7 +249,6 @@ function DashboardChofer() {
 
   return (
     <div style={estilos.pagina}>
-      {/* ENCABEZADO MÓVIL CON LOGO INTEGRADO */}
       <header style={estilos.header}>
         <div style={estilos.headerIzquierda}>
           <LogoFlotante />
@@ -241,15 +264,11 @@ function DashboardChofer() {
         </button>
       </header>
 
-      {/* CONTENIDO PRINCIPAL */}
       <main style={estilos.contenido}>
-        
-        {/* === PEGA ESTA LÍNEA AQUÍ === */}
         <MetricasChofer pedidos={pedidos} evidencias={evidencias} />
 
         {mensaje && <div style={estilos.alerta}>{mensaje}</div>}
 
-        {/* PESTAÑAS / TABS DE FILTRO */}
         <div style={estilos.contenedorTabs}>
           <button
             onClick={() => setFiltroEstatus('pendiente')}
@@ -295,7 +314,6 @@ function DashboardChofer() {
 
               return (
                 <div key={pedido.id} style={estilos.tarjeta}>
-                  {/* CABECERA TARJETA */}
                   <div style={estilos.tarjetaHeader}>
                     <span style={estilos.numeroFactura}>
                       Factura #{pedido.numero_factura || 'N/A'}
@@ -311,7 +329,6 @@ function DashboardChofer() {
                     </span>
                   </div>
 
-                  {/* DATOS DE LA ENTREGA */}
                   <div style={estilos.tarjetaCuerpo}>
                     <p style={estilos.lineaInfo}>
                       <strong>👤 Cliente:</strong> {pedido.cliente || '—'}
@@ -321,7 +338,6 @@ function DashboardChofer() {
                     </p>
                   </div>
 
-                  {/* EVIDENCIAS ADJUNTAS */}
                   {listaEvidencias.length > 0 && (
                     <div style={estilos.seccionEvidencias}>
                       <span style={estilos.tituloEvidencias}>
@@ -352,7 +368,6 @@ function DashboardChofer() {
                     </div>
                   )}
 
-                  {/* BOTONES DE ACCIÓN */}
                   <div style={estilos.tarjetaAcciones}>
                     {pedido.direccion && (
                       <a
@@ -388,7 +403,6 @@ function DashboardChofer() {
         )}
       </main>
 
-      {/* MODAL FLOTANTE DE CONFIRMACIÓN */}
       {evidenciaAEliminar && (
         <div style={estilos.modalOverlay}>
           <div style={estilos.modalCaja}>
@@ -420,7 +434,6 @@ function DashboardChofer() {
   )
 }
 
-// Estilos heredados intactos + estilos para las pestañas y el modal
 const estilos = {
   pagina: {
     minHeight: '100vh',
