@@ -15,6 +15,9 @@ function DashboardChofer() {
   const [eliminandoEvId, setEliminandoEvId] = useState(null)
   const [mensaje, setMensaje] = useState('')
 
+  // Estado para la foto capturada temporalmente antes de confirmar envío
+  const [archivosSeleccionados, setArchivosSeleccionados] = useState({})
+
   // Filtro activo por defecto en 'pendiente' y modal de confirmación
   const [filtroEstatus, setFiltroEstatus] = useState('pendiente')
   const [evidenciaAEliminar, setEvidenciaAEliminar] = useState(null)
@@ -89,9 +92,30 @@ function DashboardChofer() {
     }
   }
 
-  // Subir evidencia de forma directa y notificar al vendedor
-  async function manejarSubirEvidencia(e, pedidoId) {
+  // 1. Capturar la foto localmente (SIN subir aún)
+  function capturarArchivoTemporal(e, pedidoId) {
     const archivo = e.target.files[0]
+    if (!archivo) return
+
+    setArchivosSeleccionados((prev) => ({
+      ...prev,
+      [pedidoId]: archivo,
+    }))
+    setMensaje('')
+  }
+
+  // 2. Descartar la foto capturada si se equivocó
+  function descartarArchivoTemporal(pedidoId) {
+    setArchivosSeleccionados((prev) => {
+      const nuevo = { ...prev }
+      delete nuevo[pedidoId]
+      return nuevo
+    })
+  }
+
+  // 3. Subir la evidencia SOLO cuando presiona "Confirmar y Enviar"
+  async function confirmarYSubirEvidencia(pedidoId) {
+    const archivo = archivosSeleccionados[pedidoId]
     if (!archivo) return
 
     setSubiendoId(pedidoId)
@@ -162,6 +186,9 @@ function DashboardChofer() {
         }
       }
 
+      // Limpiar el estado temporal del pedido
+      descartarArchivoTemporal(pedidoId)
+
       setMensaje('✅ Evidencia subida y correo enviado al vendedor.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
@@ -171,7 +198,7 @@ function DashboardChofer() {
     }
   }
 
-  // Eliminar / deshacer evidencia
+  // Eliminar / deshacer evidencia guardada
   async function confirmarEliminarEvidencia() {
     if (!evidenciaAEliminar) return
     const { ev, pedidoId } = evidenciaAEliminar
@@ -291,6 +318,7 @@ function DashboardChofer() {
             {pedidosFiltrados.map((pedido) => {
               const esCompletado = pedido.estatus === 'completada'
               const estaCargandoArchivo = subiendoId === pedido.id
+              const archivoTemporal = archivosSeleccionados[pedido.id]
               const listaEvidencias = evidencias[pedido.id] || []
 
               return (
@@ -318,6 +346,13 @@ function DashboardChofer() {
                       <strong>📍 Dirección:</strong> {pedido.direccion || '—'}
                     </p>
                   </div>
+
+                  {/* AVISO DE FOTO LISTA PARA ENVIAR */}
+                  {archivoTemporal && !estaCargandoArchivo && (
+                    <div style={estilos.avisoTemporal}>
+                      📸 Foto lista ({archivoTemporal.name.slice(-15)})
+                    </div>
+                  )}
 
                   {listaEvidencias.length > 0 && (
                     <div style={estilos.seccionEvidencias}>
@@ -363,19 +398,39 @@ function DashboardChofer() {
                       </a>
                     )}
 
-                    <label style={estilos.botonSubir}>
-                      {estaCargandoArchivo
-                        ? '⏳ Subiendo...'
-                        : '📷 Agregar Evidencia'}
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        capture="environment"
-                        onChange={(e) => manejarSubirEvidencia(e, pedido.id)}
-                        style={{ display: 'none' }}
-                        disabled={estaCargandoArchivo}
-                      />
-                    </label>
+                    {!archivoTemporal ? (
+                      <label style={estilos.botonSubir}>
+                        {estaCargandoArchivo ? '⏳ Subiendo...' : '📷 Tomar Foto'}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          capture="environment"
+                          onChange={(e) => capturarArchivoTemporal(e, pedido.id)}
+                          style={{ display: 'none' }}
+                          disabled={estaCargandoArchivo}
+                        />
+                      </label>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '0.4rem', flex: 1.5 }}>
+                        <button
+                          onClick={() => descartarArchivoTemporal(pedido.id)}
+                          disabled={estaCargandoArchivo}
+                          style={estilos.botonDescartar}
+                        >
+                          🔄 Retomar
+                        </button>
+                        <button
+                          onClick={() => confirmarYSubirEvidencia(pedido.id)}
+                          disabled={estaCargandoArchivo}
+                          style={{
+                            ...estilos.botonConfirmarEnvio,
+                            opacity: estaCargandoArchivo ? 0.6 : 1,
+                          }}
+                        >
+                          {estaCargandoArchivo ? '⏳ Subiendo...' : '🚀 Enviar'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )
@@ -497,6 +552,15 @@ const estilos = {
     fontSize: '0.9rem',
     textAlign: 'center',
     fontWeight: 'bold',
+  },
+  avisoTemporal: {
+    background: '#fef3c7',
+    color: '#92400e',
+    padding: '0.4rem 0.6rem',
+    borderRadius: '6px',
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    marginBottom: '0.75rem',
   },
   sinPedidos: {
     textAlign: 'center',
@@ -635,6 +699,29 @@ const estilos = {
     fontSize: '0.85rem',
     cursor: 'pointer',
     display: 'inline-block',
+  },
+  botonDescartar: {
+    flex: 1,
+    padding: '0.6rem',
+    background: '#e2e8f0',
+    color: '#334155',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    fontSize: '0.8rem',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  botonConfirmarEnvio: {
+    flex: 1.5,
+    textAlign: 'center',
+    padding: '0.6rem',
+    background: '#16a34a',
+    color: '#fff',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    fontSize: '0.85rem',
+    border: 'none',
+    cursor: 'pointer',
   },
   modalOverlay: {
     position: 'fixed',
