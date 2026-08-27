@@ -1,5 +1,5 @@
 // src/pages/DashboardChofer.jsx
-import emailjs from '@emailjs/browser'
+// import emailjs from '@emailjs/browser' // Pausado temporalmente
 import MetricasChofer from '../components/MetricasChofer'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -113,7 +113,7 @@ function DashboardChofer() {
     })
   }
 
-  // 3. Subir la evidencia SOLO cuando presiona "Confirmar y Enviar"
+  // 3. Subir la evidencia SOLO cuando presiona "Confirmar y Enviar" (Notificaciones pausadas)
   async function confirmarYSubirEvidencia(pedidoId) {
     const archivo = archivosSeleccionados[pedidoId]
     if (!archivo) return
@@ -163,33 +163,18 @@ function DashboardChofer() {
 
       await cambiarEstatus(pedidoId, 'completada')
 
-      const pedidoActual = pedidos.find((p) => p.id === pedidoId)
-
-      // Notificación al vendedor
-      if (pedidoActual?.vendedor_email) {
-        try {
-          await emailjs.send(
-            'service_94plomw',
-            'template_tbh0dqq',
-            {
-              vendedor_email: pedidoActual.vendedor_email,
-              numero_factura: pedidoActual?.numero_factura || 'N/A',
-              cliente: pedidoActual?.cliente || 'Cliente',
-              direccion: pedidoActual?.direccion || 'Dirección registrada',
-              link_evidencia: archivoUrl,
-            },
-            'lc0yHiWMDUZy1348j'
-          )
-          console.log('📧 Notificación enviada al vendedor:', pedidoActual.vendedor_email)
-        } catch (errEmailVendedor) {
-          console.error('❌ Error enviando correo al vendedor:', errEmailVendedor)
-        }
-      }
+      // --- NOTIFICACIONES PAUSADAS ---
+      // const pedidoActual = pedidos.find((p) => p.id === pedidoId)
+      // if (pedidoActual?.vendedor_email) {
+      //   try {
+      //     await emailjs.send(...)
+      //   } catch (errEmailVendedor) { ... }
+      // }
 
       // Limpiar el estado temporal del pedido
       descartarArchivoTemporal(pedidoId)
 
-      setMensaje('✅ Evidencia subida y correo enviado al vendedor.')
+      setMensaje('✅ Evidencia subida correctamente.')
     } catch (error) {
       console.error('Error al subir evidencia:', error)
       alert('Error al subir el archivo: ' + error.message)
@@ -347,7 +332,6 @@ function DashboardChofer() {
                     </p>
                   </div>
 
-                  {/* AVISO DE FOTO LISTA PARA ENVIAR */}
                   {archivoTemporal && !estaCargandoArchivo && (
                     <div style={estilos.avisoTemporal}>
                       📸 Foto lista ({archivoTemporal.name.slice(-15)})
