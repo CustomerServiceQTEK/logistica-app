@@ -3,14 +3,48 @@ import { supabase } from '../lib/supabaseClient'
 
 export async function obtenerEstadisticasStorage() {
   try {
-    const { data: archivos, error } = await supabase.storage
-      .from('evidencias')
-      .list('', { limit: 1000 })
+    // Obtener lista de archivos con paginación para > 1000 archivos
+    let archivos = []
+    let offset = 0
+    const limit = 1000
+    let hasMore = true
 
-    if (error) throw error
+    while (hasMore) {
+      const { data, error } = await supabase.storage
+        .from('evidencias')
+        .list('', { limit, offset })
 
-    const totalBytes = (archivos || []).reduce((acc, curr) => acc + (curr.metadata?.size || 0), 0)
+      if (error) throw error
+
+      if (!data || data.length === 0) {
+        hasMore = false
+      } else {
+        archivos = archivos.concat(data)
+        if (data.length < limit) {
+          hasMore = false
+        } else {
+          offset += limit
+        }
+      }
+    }
+
+    // Obtener tamaño real de cada archivo usando .stat()
+    let totalBytes = 0
     
+    for (const archivo of archivos) {
+      try {
+        const { data: stat } = await supabase.storage
+          .from('evidencias')
+          .stat(archivo.name)
+        
+        if (stat && stat.size) {
+          totalBytes += stat.size
+        }
+      } catch (err) {
+        console.warn(`No se pudo obtener tamaño de ${archivo.name}:`, err)
+      }
+    }
+
     const mbUsados = Number((totalBytes / (1024 * 1024)).toFixed(2))
     const mbLimite = 1024 // 1 GB de límite gratuito
     const porcentaje = Number(((mbUsados / mbLimite) * 100).toFixed(1))
@@ -20,7 +54,7 @@ export async function obtenerEstadisticasStorage() {
       mbDisponible: Number((mbLimite - mbUsados).toFixed(2)),
       mbLimite,
       porcentaje,
-      totalArchivos: (archivos || []).length
+      totalArchivos: archivos.length
     }
   } catch (err) {
     console.error('Error al calcular espacio de Storage:', err)
