@@ -67,12 +67,13 @@ function SubirEvidencia({ pedido, choferId, onCompletado }) {
       const urlEvidenciaCompleta = urlData?.publicUrl || ''
       const tipoArchivo = archivo.type.includes('pdf') ? 'pdf' : 'imagen'
 
-      // 3. Registrar evidencia en la base de datos
+      // 3. Registrar evidencia en la base de datos con tamaño del archivo
       const { error: errorInsert } = await supabase.from('evidencias').insert({
         pedido_id: pedido.id,
         chofer_id: choferId,
         archivo_url: urlEvidenciaCompleta,
         tipo_archivo: tipoArchivo,
+        archivo_size: archivo.size,
       })
 
       if (errorInsert) {
