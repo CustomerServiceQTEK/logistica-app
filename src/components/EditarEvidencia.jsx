@@ -46,6 +46,7 @@ function EditarEvidencia({ pedido, evidenciaActual, onActualizado }) {
         .update({
           archivo_url: urlData.publicUrl,
           tipo_archivo: tipoArchivo,
+          archivo_size: archivo.size,
         })
         .eq('id', evidenciaActual.id)
 

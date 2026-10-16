@@ -3,8 +3,15 @@ import { useEffect, useState } from 'react'
 import { obtenerEstadisticasStorage } from '../utils/obtenerUsoStorage'
 
 function GraficaAlmacenamiento() {
-  const [stats, setStats] = useState({ mbUsados: 0, mbDisponible: 1024, mbLimite: 1024, porcentaje: 0, totalArchivos: 0 })
+  const [stats, setStats] = useState({
+    mbUsados: 0,
+    mbDisponible: 1024,
+    mbLimite: 1024,
+    porcentaje: 0,
+    totalArchivos: 0,
+  })
   const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     cargarMetricas()
@@ -12,12 +19,20 @@ function GraficaAlmacenamiento() {
 
   async function cargarMetricas() {
     setCargando(true)
-    const datos = await obtenerEstadisticasStorage()
-    setStats(datos)
-    setCargando(false)
+    setError('')
+    try {
+      const datos = await obtenerEstadisticasStorage()
+      setStats(datos)
+    } catch (err) {
+      console.error('Error al calcular espacio de Storage:', err)
+      setError('No se pudo leer el bucket. Verifica los permisos de Storage para listar archivos y vuelve a intentar.')
+    } finally {
+      setCargando(false)
+    }
   }
 
   const colorBarra = stats.porcentaje > 85 ? '#dc2626' : stats.porcentaje > 70 ? '#d97706' : '#2563eb'
+  const porcentajeGrafica = Math.min(stats.porcentaje, 100)
 
   return (
     <div style={estilos.tarjeta}>
@@ -30,6 +45,8 @@ function GraficaAlmacenamiento() {
 
       {cargando ? (
         <p style={{ textAlign: 'center', color: '#64748b', margin: '1rem 0' }}>⏳ Calculando uso de almacenamiento...</p>
+      ) : error ? (
+        <p role="alert" style={{ textAlign: 'center', color: '#dc2626', margin: '1rem 0' }}>{error}</p>
       ) : (
         <div style={estilos.cuerpoGrafica}>
           <div style={estilos.contenedorSvg}>
@@ -40,7 +57,7 @@ function GraficaAlmacenamiento() {
               />
               <path
                 style={{ ...estilos.circuloProgreso, stroke: colorBarra }}
-                strokeDasharray={`${stats.porcentaje}, 100`}
+                strokeDasharray={`${porcentajeGrafica}, 100`}
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
             </svg>
@@ -53,7 +70,7 @@ function GraficaAlmacenamiento() {
           <div style={estilos.leyenda}>
             <p style={estilos.lineaLeyenda}>
               <span style={{ ...estilos.puntoColor, background: colorBarra }}></span>
-              <strong>Ocupado:</strong> {stats.mbUsados} MB ({stats.totalArchivos} fotos)
+              <strong>Ocupado:</strong> {stats.mbUsados} MB ({stats.totalArchivos} archivos)
             </p>
             <p style={estilos.lineaLeyenda}>
               <span style={{ ...estilos.puntoColor, background: '#cbd5e1' }}></span>

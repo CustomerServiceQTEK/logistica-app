@@ -461,7 +461,6 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
               >
                 Chofer asignado{obtenerIconoOrden('chofer')}
               </th>
-              <th style={estilos.celdaEncabezado}>Vendedor Email</th>
               <th
                 onClick={() => manejarOrden('creado_en')}
                 style={estilos.celdaEncabezadoInteractiva}
@@ -515,9 +514,6 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
                         )
                       })}
                     </select>
-                  </td>
-                  <td style={{ ...estilos.celda, color: '#2563eb', fontWeight: 'bold' }}>
-                    {pedido.vendedor_email || 'Sin vendedor'}
                   </td>
                   <td style={estilos.celda}>
                     {pedido.creado_en

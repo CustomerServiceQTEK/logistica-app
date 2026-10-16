@@ -150,6 +150,7 @@ function DashboardChofer() {
           pedido_id: pedidoId,
           chofer_id: choferIdActual,
           archivo_url: archivoUrl,
+          archivo_size: archivo.size,
         })
         .select()
         .single()
