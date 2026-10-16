@@ -9,6 +9,7 @@ import TablaPedidos from '../components/TablaPedidos'
 import MetricasTiempos from '../components/MetricasTiempos'
 import TablaComparativaChoferes from '../components/TablaComparativaChoferes'
 import GraficaAlmacenamiento from '../components/GraficaAlmacenamiento'
+import LimpiezaPedidosAntiguos from '../components/LimpiezaPedidosAntiguos'
 
 function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
@@ -98,7 +99,9 @@ function DashboardAdmin() {
         </div>
 
         {/* 💾 GRÁFICA DE ALMACENAMIENTO */}
-        <GraficaAlmacenamiento />
+        <GraficaAlmacenamiento key={'storage-' + refrescar} />
+
+        <LimpiezaPedidosAntiguos onCompletado={() => setRefrescar((valor) => valor + 1)} />
 
         {/* COMPONENTES DE MÉTRICAS INTERACTIVAS */}
         <Indicadores 
