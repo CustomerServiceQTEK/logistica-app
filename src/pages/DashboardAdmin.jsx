@@ -11,10 +11,29 @@ import TablaComparativaChoferes from '../components/TablaComparativaChoferes'
 import GraficaAlmacenamiento from '../components/GraficaAlmacenamiento'
 import LimpiezaPedidosAntiguos from '../components/LimpiezaPedidosAntiguos'
 
+const PESTANAS_ADMIN = [
+  { id: 'carga', etiqueta: 'Carga de pedidos' },
+  { id: 'choferes', etiqueta: 'Dashboard de choferes' },
+  { id: 'pedidos', etiqueta: 'Lista de pedidos' },
+  { id: 'almacenamiento', etiqueta: 'Almacenamiento' },
+]
+
+function obtenerPestanaGuardada() {
+  try {
+    const pestañaGuardada = localStorage.getItem('adminPestanaActiva')
+    return PESTANAS_ADMIN.some((pestana) => pestana.id === pestañaGuardada)
+      ? pestañaGuardada
+      : 'pedidos'
+  } catch (error) {
+    console.error('No se pudo recuperar la pestaña activa:', error)
+    return 'pedidos'
+  }
+}
+
 function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
-  const [pestanaActiva, setPestanaActiva] = useState('pedidos')
+  const [pestanaActiva, setPestanaActiva] = useState(obtenerPestanaGuardada)
   const [choferes, setChoferes] = useState([])
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
   const [cargandoChoferes, setCargandoChoferes] = useState(true)
@@ -25,6 +44,14 @@ function DashboardAdmin() {
   useEffect(() => {
     cargarChoferesDesdePedidos()
   }, [refrescar])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('adminPestanaActiva', pestanaActiva)
+    } catch (error) {
+      console.error('No se pudo guardar la pestaña activa:', error)
+    }
+  }, [pestanaActiva])
 
   async function cargarChoferesDesdePedidos() {
     setCargandoChoferes(true)
@@ -64,24 +91,17 @@ function DashboardAdmin() {
 
   function manejarTecladoPestanas(event, indiceActual) {
     let siguienteIndice
-    if (event.key === 'ArrowRight') siguienteIndice = (indiceActual + 1) % pestanas.length
-    else if (event.key === 'ArrowLeft') siguienteIndice = (indiceActual - 1 + pestanas.length) % pestanas.length
+    if (event.key === 'ArrowRight') siguienteIndice = (indiceActual + 1) % PESTANAS_ADMIN.length
+    else if (event.key === 'ArrowLeft') siguienteIndice = (indiceActual - 1 + PESTANAS_ADMIN.length) % PESTANAS_ADMIN.length
     else if (event.key === 'Home') siguienteIndice = 0
-    else if (event.key === 'End') siguienteIndice = pestanas.length - 1
+    else if (event.key === 'End') siguienteIndice = PESTANAS_ADMIN.length - 1
     else return
 
     event.preventDefault()
-    const siguientePestana = pestanas[siguienteIndice]
+    const siguientePestana = PESTANAS_ADMIN[siguienteIndice]
     setPestanaActiva(siguientePestana.id)
     document.getElementById(`tab-${siguientePestana.id}`)?.focus()
   }
-
-  const pestanas = [
-    { id: 'carga', etiqueta: 'Carga de pedidos' },
-    { id: 'choferes', etiqueta: 'Dashboard de choferes' },
-    { id: 'pedidos', etiqueta: 'Lista de pedidos' },
-    { id: 'almacenamiento', etiqueta: 'Almacenamiento' },
-  ]
 
   return (
     <div style={estilos.pagina}>
@@ -102,7 +122,7 @@ function DashboardAdmin() {
 
       <div style={estilos.contenido}>
         <div role="tablist" aria-label="Secciones del panel de administrador" style={estilos.pestanas}>
-          {pestanas.map((pestana, indice) => (
+          {PESTANAS_ADMIN.map((pestana, indice) => (
             <button
               key={pestana.id}
               id={`tab-${pestana.id}`}
@@ -235,8 +255,8 @@ const estilos = {
   botonSalir: { padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
   contenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' },
   pestanas: { display: 'flex', gap: '0.5rem', overflowX: 'auto', borderBottom: '1px solid #cbd5e1', marginBottom: '1.5rem' },
-  botonPestana: { flex: '0 0 auto', padding: '0.75rem 1rem', border: 'none', borderBottom: '3px solid transparent', background: 'transparent', color: '#475569', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' },
-  botonPestanaActiva: { borderBottomColor: '#2563eb', color: '#1d4ed8' },
+  botonPestana: { flex: '0 0 auto', padding: '0.75rem 1rem', border: 'none', borderBottom: '3px solid transparent', borderRadius: '8px 8px 0 0', background: 'transparent', color: '#475569', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' },
+  botonPestanaActiva: { borderBottomColor: '#2563eb', background: '#eff6ff', color: '#1d4ed8' },
   contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   labelFiltro: { color: '#1e293b', fontSize: '0.95rem' },
   selectFiltro: { padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #94a3b8', fontSize: '0.9rem', fontWeight: 'bold', color: '#0f172a', outline: 'none', cursor: 'pointer' },
