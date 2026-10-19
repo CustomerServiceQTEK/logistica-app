@@ -14,52 +14,74 @@ import LimpiezaPedidosAntiguos from '../components/LimpiezaPedidosAntiguos'
 function DashboardAdmin() {
   const { perfil, cerrarSesion } = useAuth()
   const [refrescar, setRefrescar] = useState(0)
-  
-  // ESTADOS PARA LOS FILTROS DINÁMICOS
+  const [pestanaActiva, setPestanaActiva] = useState('pedidos')
   const [choferes, setChoferes] = useState([])
   const [choferSeleccionado, setChoferSeleccionado] = useState('')
-  const [filtroEstatus, setFiltroEstatus] = useState('todos') // 'todos' | 'pendiente' | 'completada'
+  const [cargandoChoferes, setCargandoChoferes] = useState(true)
+  const [errorChoferes, setErrorChoferes] = useState('')
+  const [filtroEstatus, setFiltroEstatus] = useState('todos')
+  const [filtroEstatusChofer, setFiltroEstatusChofer] = useState('todos')
 
   useEffect(() => {
     cargarChoferesDesdePedidos()
   }, [refrescar])
 
   async function cargarChoferesDesdePedidos() {
+    setCargandoChoferes(true)
+    setErrorChoferes('')
     try {
       const { data, error } = await supabase
-        .from('pedidos')
-        .select('chofer_id, perfiles:chofer_id(id, nombre_completo)')
-        .not('chofer_id', 'is', null)
+        .from('perfiles')
+        .select('id, nombre_completo')
+        .eq('rol', 'chofer')
+        .order('nombre_completo', { ascending: true })
 
-      if (!error && data) {
-        const mapaChoferes = {}
-        data.forEach((p) => {
-          if (p.perfiles && p.perfiles.id) {
-            mapaChoferes[p.perfiles.id] = p.perfiles.nombre_completo || 'Chofer sin nombre'
-          }
-        })
-
-        const listaUnica = Object.keys(mapaChoferes).map((id) => ({
-          id: id,
-          nombre_completo: mapaChoferes[id],
-        }))
-
-        setChoferes(listaUnica)
-      }
+      if (error) throw error
+      setChoferes(data || [])
     } catch (e) {
-      console.error('Error al obtener choferes desde pedidos:', e)
+      console.error('Error al obtener perfiles de chofer:', e)
+      setErrorChoferes('No se pudieron cargar los choferes. Intenta actualizar la página.')
+    } finally {
+      setCargandoChoferes(false)
     }
   }
 
-  // Manejador al hacer clic en las métricas/indicadores
-  function manejarSeleccionEstatus(nuevoEstatus) {
-    setFiltroEstatus(nuevoEstatus)
-    // Desplazamiento suave hacia la tabla de pedidos
-    const elementoTabla = document.getElementById('seccion-tabla-pedidos')
+  function manejarSeleccionEstatus(nuevoEstatus, vista) {
+    const esVistaChofer = vista === 'chofer'
+    if (esVistaChofer) {
+      setFiltroEstatusChofer(nuevoEstatus)
+    } else {
+      setFiltroEstatus(nuevoEstatus)
+    }
+
+    const elementoTabla = document.getElementById(
+      esVistaChofer ? 'seccion-pedidos-chofer' : 'seccion-tabla-pedidos'
+    )
     if (elementoTabla) {
       elementoTabla.scrollIntoView({ behavior: 'smooth' })
     }
   }
+
+  function manejarTecladoPestanas(event, indiceActual) {
+    let siguienteIndice
+    if (event.key === 'ArrowRight') siguienteIndice = (indiceActual + 1) % pestanas.length
+    else if (event.key === 'ArrowLeft') siguienteIndice = (indiceActual - 1 + pestanas.length) % pestanas.length
+    else if (event.key === 'Home') siguienteIndice = 0
+    else if (event.key === 'End') siguienteIndice = pestanas.length - 1
+    else return
+
+    event.preventDefault()
+    const siguientePestana = pestanas[siguienteIndice]
+    setPestanaActiva(siguientePestana.id)
+    document.getElementById(`tab-${siguientePestana.id}`)?.focus()
+  }
+
+  const pestanas = [
+    { id: 'carga', etiqueta: 'Carga de pedidos' },
+    { id: 'choferes', etiqueta: 'Dashboard de choferes' },
+    { id: 'pedidos', etiqueta: 'Lista de pedidos' },
+    { id: 'almacenamiento', etiqueta: 'Almacenamiento' },
+  ]
 
   return (
     <div style={estilos.pagina}>
@@ -79,56 +101,124 @@ function DashboardAdmin() {
       </header>
 
       <div style={estilos.contenido}>
-        {/* BARRA DE FILTRO POR CHOFER */}
-        <div style={estilos.contenedorFiltro}>
-          <label style={estilos.labelFiltro}>
-            <strong>👤 Filtrar métricas por chofer:</strong>
-          </label>
-          <select
-            value={choferSeleccionado}
-            onChange={(e) => setChoferSeleccionado(e.target.value)}
-            style={estilos.selectFiltro}
-          >
-            <option value="">Todos los choferes (Vista global)</option>
-            {choferes.map((ch) => (
-              <option key={ch.id} value={ch.id}>
-                {ch.nombre_completo}
-              </option>
-            ))}
-          </select>
+        <div role="tablist" aria-label="Secciones del panel de administrador" style={estilos.pestanas}>
+          {pestanas.map((pestana, indice) => (
+            <button
+              key={pestana.id}
+              id={`tab-${pestana.id}`}
+              type="button"
+              role="tab"
+              aria-selected={pestanaActiva === pestana.id}
+              aria-controls="panel-admin"
+              tabIndex={pestanaActiva === pestana.id ? 0 : -1}
+              onClick={() => setPestanaActiva(pestana.id)}
+              onKeyDown={(event) => manejarTecladoPestanas(event, indice)}
+              style={{
+                ...estilos.botonPestana,
+                ...(pestanaActiva === pestana.id ? estilos.botonPestanaActiva : {}),
+              }}
+            >
+              {pestana.etiqueta}
+            </button>
+          ))}
         </div>
 
-        {/* 💾 GRÁFICA DE ALMACENAMIENTO */}
-        <GraficaAlmacenamiento key={'storage-' + refrescar} />
+        <section
+          id="panel-admin"
+          role="tabpanel"
+          aria-labelledby={`tab-${pestanaActiva}`}
+          tabIndex={0}
+        >
+          {pestanaActiva === 'carga' && (
+            <CargaPedidos onExito={() => setRefrescar((valor) => valor + 1)} />
+          )}
 
-        <LimpiezaPedidosAntiguos onCompletado={() => setRefrescar((valor) => valor + 1)} />
+          {pestanaActiva === 'choferes' && (
+            <>
+              <div style={estilos.contenedorFiltro}>
+                <label htmlFor="selector-chofer" style={estilos.labelFiltro}>
+                  <strong>👤 Seleccionar chofer:</strong>
+                </label>
+                <select
+                  id="selector-chofer"
+                  value={choferSeleccionado}
+                  onChange={(e) => {
+                    setChoferSeleccionado(e.target.value)
+                    setFiltroEstatusChofer('todos')
+                  }}
+                  style={estilos.selectFiltro}
+                  disabled={cargandoChoferes || Boolean(errorChoferes)}
+                >
+                  <option value="">
+                    {cargandoChoferes ? 'Cargando choferes...' : 'Selecciona un chofer'}
+                  </option>
+                  {choferes.map((chofer) => (
+                    <option key={chofer.id} value={chofer.id}>
+                      {chofer.nombre_completo || 'Chofer sin nombre'}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-        {/* COMPONENTES DE MÉTRICAS INTERACTIVAS */}
-        <Indicadores 
-          key={refrescar + '-' + choferSeleccionado} 
-          choferId={choferSeleccionado} 
-          onSeleccionarEstatus={manejarSeleccionEstatus}
-          estatusActivo={filtroEstatus}
-        />
-        
-        <MetricasTiempos 
-          key={'metricas-' + refrescar + '-' + choferSeleccionado} 
-          choferId={choferSeleccionado} 
-        />
-        
-        {/* TABLA COMPARATIVA POR CHOFER */}
-        <TablaComparativaChoferes refrescar={refrescar} />
+              {errorChoferes && <p role="alert" style={estilos.error}>{errorChoferes}</p>}
+              {!cargandoChoferes && !errorChoferes && choferes.length === 0 && (
+                <p style={estilos.mensajeVacio}>No hay perfiles con rol de chofer.</p>
+              )}
+              {!choferSeleccionado && !cargandoChoferes && choferes.length > 0 && (
+                <p style={estilos.mensajeVacio}>Selecciona un chofer para ver su dashboard individual.</p>
+              )}
+              {choferSeleccionado && (
+                <>
+                  <Indicadores
+                    key={`indicadores-chofer-${refrescar}-${choferSeleccionado}`}
+                    choferId={choferSeleccionado}
+                    onSeleccionarEstatus={(estatus) => manejarSeleccionEstatus(estatus, 'chofer')}
+                    estatusActivo={filtroEstatusChofer}
+                  />
+                  <MetricasTiempos
+                    key={`metricas-chofer-${refrescar}-${choferSeleccionado}`}
+                    choferId={choferSeleccionado}
+                  />
+                  <div id="seccion-pedidos-chofer">
+                    <TablaPedidos
+                      key={`tabla-chofer-${refrescar}-${choferSeleccionado}`}
+                      filtroEstatusInicial={filtroEstatusChofer}
+                      filtroChoferInicial={choferSeleccionado}
+                      choferFijo={choferSeleccionado}
+                      modoDashboardChofer
+                    />
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
-        <CargaPedidos onExito={() => setRefrescar((valor) => valor + 1)} />
+          {pestanaActiva === 'pedidos' && (
+            <>
+              <Indicadores
+                key={`indicadores-globales-${refrescar}`}
+                onSeleccionarEstatus={(estatus) => manejarSeleccionEstatus(estatus, 'pedidos')}
+                estatusActivo={filtroEstatus}
+              />
+              <MetricasTiempos key={`metricas-globales-${refrescar}`} />
+              <TablaComparativaChoferes refrescar={refrescar} />
+              <div id="seccion-tabla-pedidos">
+                <TablaPedidos
+                  key={`tabla-global-${refrescar}`}
+                  filtroEstatusInicial={filtroEstatus}
+                  filtroChoferInicial=""
+                />
+              </div>
+            </>
+          )}
 
-        {/* TABLA DE PEDIDOS CON ID DE DESPLAZAMIENTO Y FILTRO AUTOMÁTICO */}
-        <div id="seccion-tabla-pedidos">
-          <TablaPedidos 
-            key={'tabla-' + refrescar} 
-            filtroEstatusInicial={filtroEstatus}
-            filtroChoferInicial={choferSeleccionado}
-          />
-        </div>
+          {pestanaActiva === 'almacenamiento' && (
+            <>
+              <GraficaAlmacenamiento key={`storage-${refrescar}`} />
+              <LimpiezaPedidosAntiguos onCompletado={() => setRefrescar((valor) => valor + 1)} />
+            </>
+          )}
+        </section>
       </div>
     </div>
   )
@@ -144,9 +234,14 @@ const estilos = {
   textoRol: { color: '#cbd5e1', fontSize: '0.9rem', textTransform: 'capitalize' },
   botonSalir: { padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
   contenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' },
+  pestanas: { display: 'flex', gap: '0.5rem', overflowX: 'auto', borderBottom: '1px solid #cbd5e1', marginBottom: '1.5rem' },
+  botonPestana: { flex: '0 0 auto', padding: '0.75rem 1rem', border: 'none', borderBottom: '3px solid transparent', background: 'transparent', color: '#475569', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' },
+  botonPestanaActiva: { borderBottomColor: '#2563eb', color: '#1d4ed8' },
   contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   labelFiltro: { color: '#1e293b', fontSize: '0.95rem' },
   selectFiltro: { padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #94a3b8', fontSize: '0.9rem', fontWeight: 'bold', color: '#0f172a', outline: 'none', cursor: 'pointer' },
+  mensajeVacio: { padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', color: '#64748b' },
+  error: { padding: '1rem', background: '#fef2f2', borderRadius: '8px', color: '#b91c1c' },
 }
 
 export default DashboardAdmin

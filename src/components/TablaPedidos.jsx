@@ -6,7 +6,12 @@ import EliminarPedido from './EliminarPedido'
 
 const PEDIDOS_POR_PAGINA = 25
 
-function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = '' }) {
+function TablaPedidos({
+  filtroEstatusInicial = 'todos',
+  filtroChoferInicial = '',
+  choferFijo = '',
+  modoDashboardChofer = false,
+}) {
   const [pedidos, setPedidos] = useState([])
   const [choferes, setChoferes] = useState([])
   const [evidencias, setEvidencias] = useState({})
@@ -37,7 +42,7 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
       setFiltroChofer(filtroChoferInicial || 'todos')
       setPaginaActual(1)
     }
-  }, [filtroChoferInicial])
+  }, [filtroChoferInicial, choferFijo])
 
   useEffect(() => {
     cargarPedidos()
@@ -174,6 +179,7 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
   // --- LÓGICA DE FILTRADO Y ORDENAMIENTO ---
   const listaPedidos = Array.isArray(pedidos) ? pedidos : []
   const terminoBuscado = (busqueda || '').toLowerCase().trim()
+  const filtroChoferAplicado = choferFijo || filtroChofer
 
   const pedidosFiltrados = listaPedidos.filter(function (pedido) {
     if (!pedido) return false
@@ -194,10 +200,10 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
 
     // 3. Filtro de Chofer
     let coincideChofer = true
-    if (filtroChofer === 'sin_asignar') {
+    if (filtroChoferAplicado === 'sin_asignar') {
       coincideChofer = !pedido.chofer_id
-    } else if (filtroChofer !== 'todos') {
-      coincideChofer = pedido.chofer_id === filtroChofer
+    } else if (filtroChoferAplicado !== 'todos') {
+      coincideChofer = pedido.chofer_id === filtroChoferAplicado
     }
 
     // 4. Filtro de Fechas
@@ -366,27 +372,29 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
           </select>
         </div>
 
-        <div style={estilos.grupoFiltro}>
-          <label style={estilos.labelFiltro}>Chofer:</label>
-          <select
-            value={filtroChofer}
-            onChange={function (e) {
-              setFiltroChofer(e.target.value)
-              setPaginaActual(1)
-            }}
-            style={estilos.selectFiltro}
-          >
-            <option value="todos">Todos los choferes</option>
-            <option value="sin_asignar">⚠️ Sin asignar</option>
-            {choferes.map(function (ch) {
-              return (
-                <option key={ch.id} value={ch.id}>
-                  👤 {ch.nombre_completo || ch.id.slice(0, 8)}
-                </option>
-              )
-            })}
-          </select>
-        </div>
+        {!choferFijo && (
+          <div style={estilos.grupoFiltro}>
+            <label style={estilos.labelFiltro}>Chofer:</label>
+            <select
+              value={filtroChofer}
+              onChange={function (e) {
+                setFiltroChofer(e.target.value)
+                setPaginaActual(1)
+              }}
+              style={estilos.selectFiltro}
+            >
+              <option value="todos">Todos los choferes</option>
+              <option value="sin_asignar">⚠️ Sin asignar</option>
+              {choferes.map(function (ch) {
+                return (
+                  <option key={ch.id} value={ch.id}>
+                    👤 {ch.nombre_completo || ch.id.slice(0, 8)}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+        )}
 
         <div style={estilos.grupoFiltro}>
           <label style={estilos.labelFiltro}>Desde:</label>
@@ -414,7 +422,7 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
           />
         </div>
 
-        {(busqueda || filtroEstatus !== 'todos' || filtroChofer !== 'todos' || fechaDesde || fechaHasta) && (
+        {(busqueda || filtroEstatus !== 'todos' || (!choferFijo && filtroChofer !== 'todos') || fechaDesde || fechaHasta) && (
           <button onClick={limpiarFiltros} style={estilos.botonLimpiarFiltros}>
             ✖ Limpiar filtros
           </button>
@@ -469,7 +477,9 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
                 Fecha y Hora de Carga{obtenerIconoOrden('creado_en')}
               </th>
               <th style={estilos.celdaEncabezado}>Evidencias y Hora Subida</th>
-              <th style={{ ...estilos.celdaEncabezado, textAlign: 'center' }}>Eliminar</th>
+              {!modoDashboardChofer && (
+                <th style={{ ...estilos.celdaEncabezado, textAlign: 'center' }}>Eliminar</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -498,22 +508,26 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
                     </span>
                   </td>
                   <td style={estilos.celda}>
-                    <select
-                      value={pedido.chofer_id || ''}
-                      onChange={function (e) {
-                        asignarChofer(pedido.id, e.target.value)
-                      }}
-                      style={estilos.select}
-                    >
-                      <option value="">Sin asignar</option>
-                      {choferes.map(function (chofer) {
-                        return (
-                          <option key={chofer.id} value={chofer.id}>
-                            {chofer.nombre_completo || chofer.id.slice(0, 8)}
-                          </option>
-                        )
-                      })}
-                    </select>
+                    {modoDashboardChofer ? (
+                      mapaChoferes[pedido.chofer_id] || 'Chofer sin nombre'
+                    ) : (
+                      <select
+                        value={pedido.chofer_id || ''}
+                        onChange={function (e) {
+                          asignarChofer(pedido.id, e.target.value)
+                        }}
+                        style={estilos.select}
+                      >
+                        <option value="">Sin asignar</option>
+                        {choferes.map(function (chofer) {
+                          return (
+                            <option key={chofer.id} value={chofer.id}>
+                              {chofer.nombre_completo || chofer.id.slice(0, 8)}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    )}
                   </td>
                   <td style={estilos.celda}>
                     {pedido.creado_en
@@ -548,12 +562,14 @@ function TablaPedidos({ filtroEstatusInicial = 'todos', filtroChoferInicial = ''
                       <span style={{ color: '#cbd5e1' }}>—</span>
                     )}
                   </td>
-                  <td style={{ ...estilos.celda, textAlign: 'center' }}>
-                    <EliminarPedido
-                      pedido={pedido}
-                      onEliminado={actualizarTodo}
-                    />
-                  </td>
+                  {!modoDashboardChofer && (
+                    <td style={{ ...estilos.celda, textAlign: 'center' }}>
+                      <EliminarPedido
+                        pedido={pedido}
+                        onEliminado={actualizarTodo}
+                      />
+                    </td>
+                  )}
                 </tr>
               )
             })}
