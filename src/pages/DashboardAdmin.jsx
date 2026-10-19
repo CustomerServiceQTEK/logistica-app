@@ -260,7 +260,7 @@ const estilos = {
   contenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' },
   pestanas: { display: 'flex', gap: '0.5rem', overflowX: 'auto', marginBottom: '1.5rem' },
   botonPestana: { flex: '0 0 auto', padding: '0.75rem 1rem', border: 'none', borderRadius: '8px', background: 'transparent', color: '#475569', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' },
-  botonPestanaActiva: { background: '#eff6ff', boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.28)' },
+  botonPestanaActiva: { background: '#ecfeff', boxShadow: '0 0 0 2px rgba(8, 145, 178, 0.35), 0 4px 14px rgba(8, 145, 178, 0.18)' },
   contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   labelFiltro: { color: '#1e293b', fontSize: '0.95rem' },
   selectFiltro: { padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid #94a3b8', fontSize: '0.9rem', fontWeight: 'bold', color: '#0f172a', outline: 'none', cursor: 'pointer' },
