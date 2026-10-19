@@ -132,6 +132,10 @@ function DashboardAdmin() {
               aria-controls="panel-admin"
               tabIndex={pestanaActiva === pestana.id ? 0 : -1}
               onClick={() => setPestanaActiva(pestana.id)}
+              onMouseDown={(event) => {
+                event.currentTarget.ownerDocument.activeElement?.blur()
+                event.preventDefault()
+              }}
               onKeyDown={(event) => manejarTecladoPestanas(event, indice)}
               style={{
                 ...estilos.botonPestana,
@@ -254,7 +258,7 @@ const estilos = {
   textoRol: { color: '#cbd5e1', fontSize: '0.9rem', textTransform: 'capitalize' },
   botonSalir: { padding: '0.5rem 1rem', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
   contenido: { maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', boxSizing: 'border-box' },
-  pestanas: { display: 'flex', gap: '0.5rem', overflowX: 'auto', borderBottom: '1px solid #cbd5e1', marginBottom: '1.5rem' },
+  pestanas: { display: 'flex', gap: '0.5rem', overflowX: 'auto', marginBottom: '1.5rem' },
   botonPestana: { flex: '0 0 auto', padding: '0.75rem 1rem', border: 'none', borderBottom: '3px solid transparent', borderRadius: '8px 8px 0 0', background: 'transparent', color: '#475569', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' },
   botonPestanaActiva: { borderBottomColor: '#2563eb', background: '#eff6ff', color: '#1d4ed8' },
   contenedorFiltro: { background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '1rem 1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
