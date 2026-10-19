@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
 import EliminarPedido from './EliminarPedido'
 
-const PEDIDOS_POR_PAGINA = 25
+const PEDIDOS_POR_PAGINA = 10
 
 function TablaPedidos({
   filtroEstatusInicial = 'todos',
