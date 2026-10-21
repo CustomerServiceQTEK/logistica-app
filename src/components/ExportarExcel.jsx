@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
+import { obtenerTipoDocumento } from '../utils/tipoDocumento'
 
 function ExportarExcel() {
   const [exportando, setExportando] = useState(false)
@@ -49,7 +50,8 @@ function ExportarExcel() {
 
     // 4. Armamos las filas en un formato limpio para el Excel
     const filas = pedidos.map((pedido) => ({
-      'Numero de Factura': pedido.numero_factura,
+      'Tipo de documento': obtenerTipoDocumento(pedido.numero_factura),
+      'Número de documento': pedido.numero_factura,
       'Cliente': pedido.cliente || '',
       'Direccion': pedido.direccion || '',
       'Estatus': pedido.estatus,

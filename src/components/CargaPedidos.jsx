@@ -1,6 +1,7 @@
 // src/components/CargaPedidos.jsx
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { formatearDocumento } from '../utils/tipoDocumento'
 
 function CargaPedidos({ onExito }) {
   const [textoPegado, setTextoPegado] = useState('')
@@ -103,7 +104,7 @@ function CargaPedidos({ onExito }) {
 
     if (nuevos.length === 0) {
       setTipoMensaje('advertencia')
-      setMensaje(`Las ${cantidadDuplicados} facturas ya existían en la base de datos. No se guardó nada nuevo.`)
+      setMensaje(`Ya existían ${cantidadDuplicados} documentos en la base de datos. No se guardó nada nuevo.`)
       setGuardando(false)
       return
     }
@@ -150,14 +151,14 @@ function CargaPedidos({ onExito }) {
       {datos.length > 0 && (
         <div style={{ marginTop: '1.2rem' }}>
           <p style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            📊 {datos.length} facturas detectadas listas para guardar:
+            📊 {datos.length} documentos detectados listos para guardar:
           </p>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={estilos.tablaPreview}>
               <thead>
                 <tr>
-                  <th style={estilos.celdaEncabezado}>Factura</th>
+                  <th style={estilos.celdaEncabezado}>Documento</th>
                   <th style={estilos.celdaEncabezado}>Cliente</th>
                   <th style={estilos.celdaEncabezado}>Correo Vendedor</th>
                   <th style={estilos.celdaEncabezado}>Dirección</th>
@@ -166,7 +167,7 @@ function CargaPedidos({ onExito }) {
               <tbody>
                 {datos.slice(0, 5).map((fila, indice) => (
                   <tr key={indice}>
-                    <td style={{ ...estilos.celda, fontWeight: 'bold' }}>{fila.numero_factura}</td>
+                    <td style={{ ...estilos.celda, fontWeight: 'bold' }}>{formatearDocumento(fila.numero_factura)}</td>
                     <td style={estilos.celda}>{fila.cliente}</td>
                     <td style={{ ...estilos.celda, color: '#2563eb' }}>
                       {fila.vendedor_email || 'Sin correo'}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabaseClient'
 import EliminarPedido from './EliminarPedido'
+import { obtenerTipoDocumento } from '../utils/tipoDocumento'
 
 const PEDIDOS_POR_PAGINA = 10
 
@@ -124,7 +125,7 @@ function TablaPedidos({
   function obtenerUrlWhatsApp(pedido) {
     const estatusTexto = pedido.estatus === 'completada' ? 'Completada' : 'Pendiente'
     const mensaje =
-      `*DETALLE DE ENTREGA - FACTURA #${pedido.numero_factura || ''}*\n\n` +
+      `*DETALLE DE ENTREGA - ${obtenerTipoDocumento(pedido.numero_factura).toUpperCase()} #${pedido.numero_factura || ''}*\n\n` +
       `• *Cliente:* ${pedido.cliente || ''}\n` +
       `• *Dirección:* ${pedido.direccion || ''}\n` +
       `• *Estatus:* ${estatusTexto}\n\n` +
@@ -274,7 +275,8 @@ function TablaPedidos({
         .join(' | ')
 
       return {
-        'No. Factura': pedido.numero_factura || 'N/A',
+        'Tipo de documento': obtenerTipoDocumento(pedido.numero_factura),
+        'Número de documento': pedido.numero_factura || 'N/A',
         Cliente: pedido.cliente || '—',
         Dirección: pedido.direccion || '—',
         Estatus: pedido.estatus === 'completada' ? 'Completada' : 'Pendiente',
@@ -290,6 +292,7 @@ function TablaPedidos({
     XLSX.utils.book_append_sheet(libro, hoja, 'Reporte Pedidos')
 
     hoja['!cols'] = [
+      { wch: 18 },
       { wch: 15 },
       { wch: 25 },
       { wch: 35 },
@@ -437,9 +440,9 @@ function TablaPedidos({
               <th
                 onClick={() => manejarOrden('numero_factura')}
                 style={estilos.celdaEncabezadoInteractiva}
-                title="Haz clic para ordenar por Factura"
+                title="Haz clic para ordenar por número de documento"
               >
-                Factura{obtenerIconoOrden('numero_factura')}
+                Documento{obtenerIconoOrden('numero_factura')}
               </th>
               <th
                 onClick={() => manejarOrden('cliente')}
@@ -490,7 +493,7 @@ function TablaPedidos({
               return (
                 <tr key={pedido.id} style={estilos.fila}>
                   <td style={{ ...estilos.celda, fontWeight: 'bold' }}>
-                    {pedido.numero_factura || 'N/A'}
+                    {obtenerTipoDocumento(pedido.numero_factura)} #{pedido.numero_factura || 'N/A'}
                   </td>
                   <td style={estilos.celda}>{pedido.cliente || '—'}</td>
                   <td style={estilos.celda}>{pedido.direccion || '—'}</td>

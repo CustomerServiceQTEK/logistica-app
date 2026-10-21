@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import LogoFlotante from '../components/LogoFlotante'
+import { formatearDocumento } from '../utils/tipoDocumento'
 
 function DashboardChofer() {
   const { perfil, cerrarSesion } = useAuth()
@@ -311,7 +312,7 @@ function DashboardChofer() {
                 <div key={pedido.id} style={estilos.tarjeta}>
                   <div style={estilos.tarjetaHeader}>
                     <span style={estilos.numeroFactura}>
-                      Factura #{pedido.numero_factura || 'N/A'}
+                      {formatearDocumento(pedido.numero_factura)}
                     </span>
                     <span
                       style={

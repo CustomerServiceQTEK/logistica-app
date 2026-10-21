@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { formatearDocumento } from '../utils/tipoDocumento'
 
 // Recibe el pedido y una función para avisar al padre que debe refrescar la lista
 function EliminarPedido({ pedido, onEliminado }) {
@@ -11,7 +12,7 @@ function EliminarPedido({ pedido, onEliminado }) {
   async function manejarEliminar() {
     // Ventana de confirmación simple, para evitar borrados accidentales
     const confirmado = window.confirm(
-      `¿Seguro que quieres eliminar el pedido "${pedido.numero_factura}"? Esta acción no se puede deshacer.`
+      `¿Seguro que quieres eliminar ${formatearDocumento(pedido.numero_factura)}? Esta acción no se puede deshacer.`
     )
 
     if (!confirmado) return

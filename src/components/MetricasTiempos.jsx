@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import Skeleton from './Skeleton'
+import { formatearDocumento } from '../utils/tipoDocumento'
 
 const DIAS_PARA_ATRASO = 5
 
@@ -155,7 +156,7 @@ function MetricasTiempos({ choferId }) {
           {atrasados.map(function (pedido) {
             return (
               <div key={pedido.id} style={estilos.filaAtrasado}>
-                <span style={{ fontWeight: 'bold' }}>{pedido.numero_factura}</span>
+                <span style={{ fontWeight: 'bold' }}>{formatearDocumento(pedido.numero_factura)}</span>
                 <span style={{ color: '#64748b' }}>{pedido.cliente}</span>
                 <span style={{ color: '#dc2626', fontSize: '0.85rem' }}>
                   Cargado el {new Date(pedido.creado_en).toLocaleDateString()}

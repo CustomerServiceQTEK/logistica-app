@@ -3,6 +3,7 @@ import {
   eliminarPedidosVencidos,
   obtenerVistaPreviaLimpieza,
 } from '../utils/limpiarPedidosAntiguos'
+import { formatearDocumento } from '../utils/tipoDocumento'
 
 function LimpiezaPedidosAntiguos({ onCompletado }) {
   const [vistaPrevia, setVistaPrevia] = useState(null)
@@ -87,7 +88,7 @@ function LimpiezaPedidosAntiguos({ onCompletado }) {
             <ul style={estilos.lista}>
               {pedidosMuestra.map((pedido) => (
                 <li key={pedido.id}>
-                  Factura {pedido.numero_factura || pedido.id} —{' '}
+                  {formatearDocumento(pedido.numero_factura || pedido.id)} —{' '}
                   {new Date(pedido.creado_en).toLocaleDateString('es-MX')}
                 </li>
               ))}
@@ -116,7 +117,7 @@ function LimpiezaPedidosAntiguos({ onCompletado }) {
         <ul role="alert" style={estilos.errores}>
           {fallidos.map((fallido, indice) => (
             <li key={`${fallido.numeroFactura}-${indice}`}>
-              Factura {fallido.numeroFactura}: {fallido.mensaje}
+              {formatearDocumento(fallido.numeroFactura)}: {fallido.mensaje}
             </li>
           ))}
         </ul>
